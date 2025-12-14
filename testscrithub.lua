@@ -29,6 +29,10 @@ if game.PlaceId == 82013336390273 then
     local player = Players.LocalPlayer
     local camera = workspace.CurrentCamera
     local character = player.Character or player.CharacterAdded:Wait()
+    
+    -- Get mining speed boost reference (object, not value)
+    local playerStats = ReplicatedStorage.Stats:WaitForChild(player.Name)
+    local miningSpeedBoost = playerStats:WaitForChild("MiningSpeedBoost")
 
     -- ============================================
     -- STATE VARIABLES
@@ -39,14 +43,21 @@ if game.PlaceId == 82013336390273 then
     local isAutoBuyPickaxe = false
     local isAutoBuyMiner = false
     local isHatching = false
+    local isSpeedMiningEnabled = false
     local timeteleback = 0
     local selectedEgg = nil
+    local selectedMiningSpeed = nil
     
     task.wait(0.5)
 
     -- ============================================
-    -- EGGS LIST
+    -- LISTS
     -- ============================================
+    local SpeedMiningList = {
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+        11, 12, 13, 14, 15, 16, 17, 18, 19, 20
+    }
+    
     local EggsList = {
         "5M Egg",
         "Angelic Egg",
@@ -203,6 +214,14 @@ if game.PlaceId == 82013336390273 then
             :InvokeServer(unpack(args))
     end
 
+    -- Sets mining speed boost value
+    local function setMiningSpeed(speed)
+        if miningSpeedBoost then
+            miningSpeedBoost.Value = speed
+            print("Mining speed set to: " .. speed)
+        end
+    end
+
     -- ============================================
     -- UI SETUP - FARM TAB
     -- ============================================
@@ -210,6 +229,38 @@ if game.PlaceId == 82013336390273 then
     local FarmTab = GUI:Tab{
         Name = "Auto Farm",
         Icon = "rbxassetid://8569322835"
+    }
+
+    -- Mining Speed Selection Dropdown
+    local SpeedMiningDropdown = FarmTab:Dropdown{
+        Name = "Select Your Mining Speed",
+        StartingText = "Select...",
+        Description = "Select your mining speed (1-20)",
+        Items = SpeedMiningList,
+        Callback = function(item) 
+            selectedMiningSpeed = item
+            print("Selected mining speed: " .. selectedMiningSpeed)
+        end
+    }
+
+    -- Mining Speed Boost Toggle
+    FarmTab:Toggle{
+        Name = "Set Mining Speed",
+        StartingState = false,
+        Description = "Applies the selected mining speed",
+        Callback = function(state) 
+            isSpeedMiningEnabled = state
+            
+            if isSpeedMiningEnabled then
+                if selectedMiningSpeed then
+                    setMiningSpeed(selectedMiningSpeed)
+                else
+                    warn("No mining speed selected! Please select a speed first.")
+                end
+            else
+                print("Mining speed boost disabled")
+            end
+        end
     }
 
     -- Auto Buy Pickaxe Toggle
