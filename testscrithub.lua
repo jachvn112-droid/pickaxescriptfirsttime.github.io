@@ -30,9 +30,12 @@ if game.PlaceId == 82013336390273 then
     local camera = workspace.CurrentCamera
     local character = player.Character or player.CharacterAdded:Wait()
     
-    -- Get mining speed boost reference (object, not value)
+    -- Get player stats references
     local playerStats = ReplicatedStorage.Stats:WaitForChild(player.Name)
     local miningSpeedBoost = playerStats:WaitForChild("MiningSpeedBoost")
+    local miningPower = playerStats:WaitForChild("Power")
+    -- Get the gamepass
+   
 
     -- ============================================
     -- STATE VARIABLES
@@ -44,9 +47,12 @@ if game.PlaceId == 82013336390273 then
     local isAutoBuyMiner = false
     local isHatching = false
     local isSpeedMiningEnabled = false
+    local isPowerEnabled = false
+    local sigegghatchgamepass = false
     local timeteleback = 0
     local selectedEgg = nil
     local selectedMiningSpeed = nil
+    local selectedPower = nil
     
     task.wait(0.5)
 
@@ -56,6 +62,15 @@ if game.PlaceId == 82013336390273 then
     local SpeedMiningList = {
         1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
         11, 12, 13, 14, 15, 16, 17, 18, 19, 20
+    }
+    
+    local PowerMiningList = {
+        999, 
+        9999, 
+        99999, 
+        999999, 
+        9999999, 
+        99999999
     }
     
     local EggsList = {
@@ -222,6 +237,13 @@ if game.PlaceId == 82013336390273 then
         end
     end
 
+    -- Sets mining power value
+    local function setMiningPower(power)
+        if miningPower then
+            miningPower.Value = power
+            print("Mining power set to: " .. power)
+        end
+    end
     -- ============================================
     -- UI SETUP - FARM TAB
     -- ============================================
@@ -229,6 +251,38 @@ if game.PlaceId == 82013336390273 then
     local FarmTab = GUI:Tab{
         Name = "Auto Farm",
         Icon = "rbxassetid://8569322835"
+    }
+
+    -- Mining Power Selection Dropdown
+    local PowerMiningDropdown = FarmTab:Dropdown{
+        Name = "Select Your Power",
+        StartingText = "Select...",
+        Description = "Select your mining power",
+        Items = PowerMiningList,
+        Callback = function(item) 
+            selectedPower = item
+            print("Selected mining power: " .. selectedPower)
+        end
+    }
+
+    -- Mining Power Toggle
+    FarmTab:Toggle{
+        Name = "Set Mining Power",
+        StartingState = false,
+        Description = "Applies the selected mining power",
+        Callback = function(state) 
+            isPowerEnabled = state
+            
+            if isPowerEnabled then
+                if selectedPower then
+                    setMiningPower(selectedPower)
+                else
+                    warn("No mining power selected! Please select a power first.")
+                end
+            else
+                print("Mining power boost disabled")
+            end
+        end
     }
 
     -- Mining Speed Selection Dropdown
