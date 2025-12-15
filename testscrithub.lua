@@ -549,9 +549,6 @@ if game.PlaceId == 121864768012064 then
     local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
     
     -- Stats của người chơi
-    local playerStats = ReplicatedStorage.Stats:WaitForChild(player.Name)
-    local miningSpeedBoost = playerStats:WaitForChild("MiningSpeedBoost")
-    local miningPower = playerStats:WaitForChild("Power")
 
     -- ============================================
     -- BIẾN TRẠNG THÁI
