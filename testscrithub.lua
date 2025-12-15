@@ -59,7 +59,8 @@ if game.PlaceId == 82013336390273 then
     -- LISTS
     -- ============================================
     local SpeedMiningList = {
-        1, 2, 3, 4, 5
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+        11, 12, 13, 14, 15, 16, 17, 18, 19, 20
     }
     
     local RebirthList = {
@@ -496,6 +497,189 @@ if game.PlaceId == 82013336390273 then
                 end
             end
         end
+    }
+    
+end
+-- ============================================
+-- fish it AUTO FARM SCRIPT
+-- ============================================
+
+if game.PlaceId == 121864768012064 then
+    -- ============================================
+    -- CÀI ĐẶT CƠ BẢN
+    -- ============================================
+    local CurrentVersion = "fish it"
+
+    -- Tải Mercury UI Library
+    local Mercury = loadstring(game:HttpGet("https://raw.githubusercontent.com/deeeity/mercury-lib/master/src.lua"))()
+
+    -- Tạo cửa sổ GUI
+    local GUI = Mercury:Create{
+        Name = CurrentVersion,
+        Size = UDim2.fromOffset(600, 400),
+        Theme = Mercury.Themes.Dark,
+        Link = "https://github.com/deeeity/mercury-lib"
+    }
+
+    -- ============================================
+    -- SERVICES (Dịch vụ game)
+    -- ============================================
+    local RunService = game:GetService("RunService")
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local VirtualInputManager = game:GetService("VirtualInputManager")
+    local UserInputService = game:GetService("UserInputService")
+    local Players = game:GetService("Players")
+    
+    -- ============================================
+    -- PLAYER REFERENCES (Thông tin người chơi)
+    -- ============================================
+    local player = Players.LocalPlayer
+    local camera = workspace.CurrentCamera
+    local character = player.Character or player.CharacterAdded:Wait()
+    local humanoid = character:WaitForChild("Humanoid")
+    local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+    local currentHealth = humanoid.Health
+    
+    -- Stats của người chơi
+    local playerStats = ReplicatedStorage.Stats:WaitForChild(player.Name)
+    local miningSpeedBoost = playerStats:WaitForChild("MiningSpeedBoost")
+    local miningPower = playerStats:WaitForChild("Power")
+
+    -- ============================================
+    -- BIẾN TRẠNG THÁI
+    -- ============================================
+   local fishing = false
+local selectedlocation = nil
+
+
+-- Map locations
+local locationMap = {
+    ["Location 1"] = CFrame.new(-57.7402344, 5.54157162, 2786.78198, 1, 0, 0, 0, 1, 0, 0, 0, 1)
+}
+
+-- Table cho Dropdown (phải là strings)
+local farmlocationtable = {"Location 1"}
+
+task.wait(0.5)
+
+    -- ============================================
+    -- HÀM CHỨC NĂNG
+    -- ============================================
+    
+    -- Tự động trang bị pickaxe
+    local function autoequip()
+        local args = {1}
+        
+        game:GetService("ReplicatedStorage")
+            :WaitForChild("Packages")
+            :WaitForChild("_Index")
+            :WaitForChild("sleitnick_net@0.2.0")
+            :WaitForChild("net")
+            :WaitForChild("RE/EquipToolFromHotbar")
+            :FireServer(unpack(args))
+    end
+    
+    -- Trang bị lại khi chết
+    local function ondeadthenequip()
+        if currentHealth == 0 then
+            autoequip()
+        end
+    end
+    
+    -- Tự động trang bị lại khi bỏ trang bị
+    local function onunequip()
+        local unequip = game:GetService("ReplicatedStorage")
+            :WaitForChild("Packages")
+            :WaitForChild("_Index")
+            :WaitForChild("sleitnick_net@0.2.0")
+            :WaitForChild("net")
+            :WaitForChild("RE/UnequipToolFromHotbar")
+            :FireServer()
+            
+        if unequip then 
+            autoequip()
+        end
+    end
+    
+    -- Tự động click chuột
+    local function clickMouse()
+        if not character then 
+            repeat task.wait() until character 
+        end
+        
+        if not humanoidRootPart then 
+            repeat task.wait() until humanoidRootPart 
+        end
+        
+        -- Lấy vị trí chuột hiện tại trên màn hình
+        local mousePos = UserInputService:GetMouseLocation()
+        
+        -- Mouse down
+        VirtualInputManager:SendMouseButtonEvent(mousePos.X, mousePos.Y, 0, true, game, 0)
+        task.wait(0.05)
+        
+        -- Mouse up
+        VirtualInputManager:SendMouseButtonEvent(mousePos.X, mousePos.Y, 0, false, game, 0)
+        
+        -- Đợi 0.3 giây cho lần click tiếp theo
+        task.wait(0.3)
+    end
+    local function teleportToLocation(cframe)
+    if humanoidRootPart and cframe then
+        humanoidRootPart.CFrame = cframe
+    end
+end
+
+
+    -- ============================================
+    -- TẠO UI TABS
+    -- ============================================
+    
+    local FarmTab = GUI:Tab{
+        Name = "Auto Farm",
+        Icon = "rbxassetid://8569322835"
+    }
+     local locationDropDown = FarmTab:Dropdown{
+    Name = "Select Location to farm",
+    StartingText = "Select...",
+    Description = "Select the location you want to farm",
+    Items = farmlocationtable,
+    Callback = function(item) 
+        selectedlocation = locationMap[item]  -- Lấy CFrame từ map
+        print("Selected location: " .. item)
+        
+        -- Teleport đến location đã chọn
+        teleportToLocation(selectedlocation)
+    end
+}
+      FarmTab:Toggle{
+        Name = "Auto Farm",
+        StartingState = false,
+        Description = "Automatically enables Fishsing",
+        Callback = function(state) 
+            fishing = state
+            if fishing then
+                task.spawn(function()
+                    while fishing do
+                        autoequip()
+                        ondeadthenequip()
+                        onunequip()
+                        task.wait(500)
+                    end
+                end)
+                task.spawn(function()
+                    while fishing do
+                        clickMouse()
+                    end 
+                end)
+            end
+        end
+    }
+
+    
+    local PetTab = GUI:Tab{
+        Name = "Pet Tab",
+        Icon = "rbxassetid://8569322835"
     }
     
 end
