@@ -34,8 +34,6 @@ if game.PlaceId == 82013336390273 then
     local playerStats = ReplicatedStorage.Stats:WaitForChild(player.Name)
     local miningSpeedBoost = playerStats:WaitForChild("MiningSpeedBoost")
     local miningPower = playerStats:WaitForChild("Power")
-    -- Get the gamepass
-   
 
     -- ============================================
     -- STATE VARIABLES
@@ -48,11 +46,12 @@ if game.PlaceId == 82013336390273 then
     local isHatching = false
     local isSpeedMiningEnabled = false
     local isPowerEnabled = false
-    local sigegghatchgamepass = false
+    local isAutoRebirthEnabled = false
     local timeteleback = 0
     local selectedEgg = nil
     local selectedMiningSpeed = nil
     local selectedPower = nil
+    local selectedRebirth = nil
     
     task.wait(0.5)
 
@@ -61,7 +60,17 @@ if game.PlaceId == 82013336390273 then
     -- ============================================
     local SpeedMiningList = {
         1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-        11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 100
+        11, 12, 13, 14, 15, 16, 17, 18, 19, 20
+    }
+    
+    local RebirthList = {
+        1, 5, 20, 50, 100, 250, 500, 1000, 2500, 5000, 
+        10000, 25000, 50000, 100000, 250000, 500000, 
+        1000000, 2500000, 10000000, 25000000, 100000000, 
+        1000000000, 50000000000, 500000000000, 5000000000000, 
+        100000000000000, 1000000000000000, 50000000000000000, 
+        500000000000000000, 2500000000000000000, 50000000000000000000, 
+        500000000000000000000, 5e+21, 1e+23, 1e+24, 5e+25
     }
     
     local PowerMiningList = {
@@ -70,9 +79,7 @@ if game.PlaceId == 82013336390273 then
         99999, 
         999999, 
         9999999, 
-        99999999,
-        2e+24,
-        99999999999999999999999999999999999999999
+        99999999
     }
     
     local EggsList = {
@@ -231,6 +238,19 @@ if game.PlaceId == 82013336390273 then
             :InvokeServer(unpack(args))
     end
 
+    -- Performs rebirth with selected amount
+    local function performRebirth(rebirthAmount)
+        local args = {
+            "Rebirth",
+            rebirthAmount
+        }
+        
+        ReplicatedStorage:WaitForChild("Paper")
+            :WaitForChild("Remotes")
+            :WaitForChild("__remotefunction")
+            :InvokeServer(unpack(args))
+    end
+
     -- Sets mining speed boost value
     local function setMiningSpeed(speed)
         if miningSpeedBoost then
@@ -246,6 +266,7 @@ if game.PlaceId == 82013336390273 then
             print("Mining power set to: " .. power)
         end
     end
+
     -- ============================================
     -- UI SETUP - FARM TAB
     -- ============================================
@@ -253,6 +274,40 @@ if game.PlaceId == 82013336390273 then
     local FarmTab = GUI:Tab{
         Name = "Auto Farm",
         Icon = "rbxassetid://8569322835"
+    }
+
+    -- Rebirth Selection Dropdown
+    local RebirthDropdown = FarmTab:Dropdown{
+        Name = "Select Rebirth Amount",
+        StartingText = "Select...",
+        Description = "Select your rebirth amount",
+        Items = RebirthList,
+        Callback = function(item) 
+            selectedRebirth = item
+            print("Selected rebirth amount: " .. selectedRebirth)
+        end
+    }
+
+    -- Auto Rebirth Toggle
+    FarmTab:Toggle{
+        Name = "Auto Rebirth",
+        StartingState = false,
+        Description = "Automatically rebirths with selected amount",
+        Callback = function(state) 
+            isAutoRebirthEnabled = state
+            
+            -- Main rebirth loop
+            while isAutoRebirthEnabled do
+                if selectedRebirth then
+                    performRebirth(selectedRebirth)
+                    print("Rebirthing with amount: " .. selectedRebirth)
+                    task.wait(1) -- Wait 1 second between rebirths
+                else
+                    warn("No rebirth amount selected! Please select an amount first.")
+                    task.wait(2)
+                end
+            end
+        end
     }
 
     -- Mining Power Selection Dropdown
