@@ -504,6 +504,10 @@ end
 -- PICKAXE SIMULATOR AUTO FARM SCRIPT
 -- ============================================
 
+-- ============================================
+-- FISH IT AUTO FARM SCRIPT (ĐÃ SỬA LỖI)
+-- ============================================
+
 if game.PlaceId == 121864768012064 then
     -- ============================================
     -- CÀI ĐẶT CƠ BẢN
@@ -524,7 +528,7 @@ if game.PlaceId == 121864768012064 then
         Name = "Auto Farm",
         Icon = "rbxassetid://8569322835"
     }
-     local PetTab = GUI:Tab{
+    local PetTab = GUI:Tab{
         Name = "Pet Tab",
         Icon = "rbxassetid://8569322835"
     }
@@ -546,7 +550,6 @@ if game.PlaceId == 121864768012064 then
     local character = player.Character or player.CharacterAdded:Wait()
     local humanoid = character:WaitForChild("Humanoid")
     local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
-    local currentHealth = humanoid.Health
     
     -- Stats của người chơi
     local playerStats = ReplicatedStorage.Stats:WaitForChild(player.Name)
@@ -556,132 +559,169 @@ if game.PlaceId == 121864768012064 then
     -- ============================================
     -- BIẾN TRẠNG THÁI
     -- ============================================
-   local fishing = false
-local selectedlocation = nil
+    local fishing = false
+    local selectedlocation = nil
+    local isEquipped = false
 
+    -- Map locations
+    local locationMap = {
+        ["Location 1"] = CFrame.new(-57.7402344, 5.54157162, 2786.78198, 1, 0, 0, 0, 1, 0, 0, 0, 1)
+    }
 
--- Map locations
-local locationMap = {
-    ["Location 1"] = CFrame.new(-57.7402344, 5.54157162, 2786.78198, 1, 0, 0, 0, 1, 0, 0, 0, 1)
-}
+    -- Table cho Dropdown (phải là strings)
+    local farmlocationtable = {"Location 1"}
 
--- Table cho Dropdown (phải là strings)
-local farmlocationtable = {"Location 1"}
-
-task.wait(0.5)
+    task.wait(0.5)
 
     -- ============================================
-    -- HÀM CHỨC NĂNG
+    -- HÀM CHỨC NĂNG (ĐÃ SỬA)
     -- ============================================
     
     -- Tự động trang bị pickaxe
     local function autoequip()
-        local args = {1}
+        if isEquipped then return end -- Tránh spam
         
-        game:GetService("ReplicatedStorage")
-            :WaitForChild("Packages")
-            :WaitForChild("_Index")
-            :WaitForChild("sleitnick_net@0.2.0")
-            :WaitForChild("net")
-            :WaitForChild("RE/EquipToolFromHotbar")
-            :FireServer(unpack(args))
-    end
-    
-    -- Trang bị lại khi chết
-    local function ondeadthenequip()
-        if currentHealth == 0 then
-            autoequip()
-        end
-    end
-    
-    -- Tự động trang bị lại khi bỏ trang bị
-    local function onunequip()
-        local unequip = game:GetService("ReplicatedStorage")
-            :WaitForChild("Packages")
-            :WaitForChild("_Index")
-            :WaitForChild("sleitnick_net@0.2.0")
-            :WaitForChild("net")
-            :WaitForChild("RE/UnequipToolFromHotbar")
-            :FireServer()
+        local success, err = pcall(function()
+            local args = {1}
             
-        if unequip then 
-            autoequip()
+            game:GetService("ReplicatedStorage")
+                :WaitForChild("Packages")
+                :WaitForChild("_Index")
+                :WaitForChild("sleitnick_net@0.2.0")
+                :WaitForChild("net")
+                :WaitForChild("RE/EquipToolFromHotbar")
+                :FireServer(unpack(args))
+            
+            isEquipped = true
+            print("✅ Equipped tool")
+        end)
+        
+        if not success then
+            warn("❌ Equip failed:", err)
         end
+    end
+    
+    -- Theo dõi khi nhân vật chết và respawn
+    local function setupDeathHandler()
+        humanoid.Died:Connect(function()
+            print("💀 Character died, waiting for respawn...")
+            isEquipped = false
+            
+            -- Đợi respawn
+            character = player.CharacterAdded:Wait()
+            humanoid = character:WaitForChild("Humanoid")
+            humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+            
+            task.wait(1) -- Đợi character load đầy đủ
+            
+            -- Teleport về vị trí farm nếu đã chọn
+            if selectedlocation then
+                humanoidRootPart.CFrame = selectedlocation
+            end
+            
+            -- Trang bị lại
+            task.wait(0.5)
+            autoequip()
+            
+            print("✅ Respawned and re-equipped")
+        end)
     end
     
     -- Tự động click chuột
     local function clickMouse()
-        if not character then 
-            repeat task.wait() until character 
+        if not character or not humanoid or humanoid.Health <= 0 then 
+            return 
         end
         
         if not humanoidRootPart then 
-            repeat task.wait() until humanoidRootPart 
+            return 
         end
         
         -- Lấy vị trí chuột hiện tại trên màn hình
         local mousePos = UserInputService:GetMouseLocation()
         
-        -- Mouse down
-        VirtualInputManager:SendMouseButtonEvent(mousePos.X, mousePos.Y, 0, true, game, 0)
-        task.wait(0.05)
+        local success, err = pcall(function()
+            -- Mouse down
+            VirtualInputManager:SendMouseButtonEvent(mousePos.X, mousePos.Y, 0, true, game, 0)
+            task.wait(0.05)
+            
+            -- Mouse up
+            VirtualInputManager:SendMouseButtonEvent(mousePos.X, mousePos.Y, 0, false, game, 0)
+        end)
         
-        -- Mouse up
-        VirtualInputManager:SendMouseButtonEvent(mousePos.X, mousePos.Y, 0, false, game, 0)
-        
-        -- Đợi 0.3 giây cho lần click tiếp theo
-        task.wait(0.3)
+        if not success then
+            warn("❌ Click failed:", err)
+        end
     end
+    
+    -- Teleport đến location
     local function teleportToLocation(cframe)
-    if humanoidRootPart and cframe then
-        humanoidRootPart.CFrame = cframe
+        if humanoidRootPart and cframe then
+            humanoidRootPart.CFrame = cframe
+            print("📍 Teleported to location")
+        end
     end
-end
-
 
     -- ============================================
-    -- TẠO UI TABS
+    -- TẠO UI
     -- ============================================
     
+    local locationDropDown = FarmTab:Dropdown{
+        Name = "Select Location to farm",
+        StartingText = "Select...",
+        Description = "Select the location you want to farm",
+        Items = farmlocationtable,
+        Callback = function(item) 
+            selectedlocation = locationMap[item]
+            print("Selected location: " .. item)
+            
+            -- Teleport đến location đã chọn
+            teleportToLocation(selectedlocation)
+        end
+    }
     
-     local locationDropDown = FarmTab:Dropdown{
-    Name = "Select Location to farm",
-    StartingText = "Select...",
-    Description = "Select the location you want to farm",
-    Items = farmlocationtable,
-    Callback = function(item) 
-        selectedlocation = locationMap[item]  -- Lấy CFrame từ map
-        print("Selected location: " .. item)
-        
-        -- Teleport đến location đã chọn
-        teleportToLocation(selectedlocation)
-    end
-}
-      FarmTab:Toggle{
+    FarmTab:Toggle{
         Name = "Auto Farm",
         StartingState = false,
-        Description = "Automatically enables Fishsing",
+        Description = "Automatically enables Fishing",
         Callback = function(state) 
             fishing = state
+            
             if fishing then
+                print("🎣 Auto Farm started!")
+                
+                -- Setup death handler một lần
+                setupDeathHandler()
+                
+                -- Trang bị lần đầu
+                autoequip()
+                
+                -- Loop auto click
                 task.spawn(function()
                     while fishing do
-                        autoequip()
-                        ondeadthenequip()
-                        onunequip()
-                        task.wait(500)
+                        if humanoid and humanoid.Health > 0 then
+                            clickMouse()
+                            task.wait(0.3) -- Đợi 0.3s giữa mỗi click
+                        else
+                            task.wait(1) -- Đợi respawn
+                        end
                     end
                 end)
+                
+                -- Loop kiểm tra và re-equip nếu cần
                 task.spawn(function()
                     while fishing do
-                        clickMouse()
-                    end 
+                        if humanoid and humanoid.Health > 0 and not isEquipped then
+                            autoequip()
+                        end
+                        task.wait(5) -- Kiểm tra mỗi 5 giây
+                    end
                 end)
+            else
+                print("⏹️ Auto Farm stopped!")
+                isEquipped = false
             end
         end
     }
-
-    
-   
     
 end
