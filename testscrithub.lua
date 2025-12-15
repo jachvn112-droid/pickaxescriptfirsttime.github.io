@@ -544,11 +544,21 @@ if game.PlaceId == 121864768012064 then
     -- ============================================
     local player = Players.LocalPlayer
     local camera = workspace.CurrentCamera
-    local character = player.Character or player.CharacterAdded:Wait()
-    local humanoid = character:WaitForChild("Humanoid")
-    local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
     
-    -- Stats của người chơi
+    -- Sử dụng function để lấy character references mới nhất
+    local function getCharacter()
+        return player.Character
+    end
+    
+    local function getHumanoid()
+        local char = getCharacter()
+        return char and char:FindFirstChild("Humanoid")
+    end
+    
+    local function getHumanoidRootPart()
+        local char = getCharacter()
+        return char and char:FindFirstChild("HumanoidRootPart")
+    end
 
     -- ============================================
     -- BIẾN TRẠNG THÁI
@@ -556,6 +566,7 @@ if game.PlaceId == 121864768012064 then
     local fishing = false
     local selectedlocation = nil
     local isEquipped = false
+    local deathConnection = nil  -- Lưu connection để có thể disconnect
 
     -- Map locations
     local locationMap = {
@@ -571,7 +582,7 @@ if game.PlaceId == 121864768012064 then
     -- HÀM CHỨC NĂNG (ĐÃ SỬA)
     -- ============================================
     
-    -- Tự động trang bị pickaxe
+    -- Tự động trang bị fishing rod
     local function autoequip()
         if isEquipped then return end -- Tránh spam
         
@@ -592,25 +603,45 @@ if game.PlaceId == 121864768012064 then
         
         if not success then
             warn("❌ Equip failed:", err)
+            isEquipped = false
+        end
+    end
+    
+    -- Disconnect death handler cũ trước khi tạo mới
+    local function disconnectDeathHandler()
+        if deathConnection then
+            deathConnection:Disconnect()
+            deathConnection = nil
+            print("🔌 Disconnected old death handler")
         end
     end
     
     -- Theo dõi khi nhân vật chết và respawn
     local function setupDeathHandler()
-        humanoid.Died:Connect(function()
+        -- QUAN TRỌNG: Disconnect connection cũ trước khi tạo mới
+        disconnectDeathHandler()
+        
+        local humanoid = getHumanoid()
+        if not humanoid then 
+            warn("❌ Cannot setup death handler - no humanoid found")
+            return 
+        end
+        
+        deathConnection = humanoid.Died:Connect(function()
             print("💀 Character died, waiting for respawn...")
             isEquipped = false
             
             -- Đợi respawn
-            character = player.CharacterAdded:Wait()
-            humanoid = character:WaitForChild("Humanoid")
-            humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+            local newCharacter = player.CharacterAdded:Wait()
+            local newHumanoid = newCharacter:WaitForChild("Humanoid")
+            local newHumanoidRootPart = newCharacter:WaitForChild("HumanoidRootPart")
             
             task.wait(1) -- Đợi character load đầy đủ
             
             -- Teleport về vị trí farm nếu đã chọn
-            if selectedlocation then
-                humanoidRootPart.CFrame = selectedlocation
+            if selectedlocation and newHumanoidRootPart then
+                newHumanoidRootPart.CFrame = selectedlocation
+                print("📍 Teleported back to farm location")
             end
             
             -- Trang bị lại
@@ -618,12 +649,22 @@ if game.PlaceId == 121864768012064 then
             autoequip()
             
             print("✅ Respawned and re-equipped")
+            
+            -- QUAN TRỌNG: Setup lại death handler cho character mới
+            if fishing then
+                setupDeathHandler()
+            end
         end)
+        
+        print("🔗 Death handler connected")
     end
     
     -- Tự động click chuột
     local function clickMouse()
-        if not character or not humanoid or humanoid.Health <= 0 then 
+        local humanoid = getHumanoid()
+        local humanoidRootPart = getHumanoidRootPart()
+        
+        if not humanoid or humanoid.Health <= 0 then 
             return 
         end
         
@@ -632,9 +673,9 @@ if game.PlaceId == 121864768012064 then
         end
         
         -- Lấy vị trí chuột hiện tại trên màn hình
-        local mousePos = UserInputService:GetMouseLocation()
-        
         local success, err = pcall(function()
+            local mousePos = UserInputService:GetMouseLocation()
+            
             -- Mouse down
             VirtualInputManager:SendMouseButtonEvent(mousePos.X, mousePos.Y, 0, true, game, 0)
             task.wait(0.05)
@@ -650,6 +691,7 @@ if game.PlaceId == 121864768012064 then
     
     -- Teleport đến location
     local function teleportToLocation(cframe)
+        local humanoidRootPart = getHumanoidRootPart()
         if humanoidRootPart and cframe then
             humanoidRootPart.CFrame = cframe
             print("📍 Teleported to location")
@@ -657,10 +699,11 @@ if game.PlaceId == 121864768012064 then
     end
 
     -- ============================================
-    -- TẠO UI
+    -- TẠO UI (ĐÃ SỬA - ĐẶT ĐÚNG TAB)
     -- ============================================
     
-    local locationDropDown = PetTab:Dropdown{
+    -- ĐẶT TRONG FARMTAB (không phải PetTab)
+    local locationDropDown = FarmTab:Dropdown{
         Name = "Select Location to farm",
         StartingText = "Select...",
         Description = "Select the location you want to farm",
@@ -674,7 +717,8 @@ if game.PlaceId == 121864768012064 then
         end
     }
     
-    PetTab:Toggle{
+    -- ĐẶT TRONG FARMTAB (không phải PetTab)
+    FarmTab:Toggle{
         Name = "Auto Farm",
         StartingState = false,
         Description = "Automatically enables Fishing",
@@ -688,11 +732,14 @@ if game.PlaceId == 121864768012064 then
                 setupDeathHandler()
                 
                 -- Trang bị lần đầu
+                task.wait(0.5)
                 autoequip()
                 
                 -- Loop auto click
                 task.spawn(function()
                     while fishing do
+                        local humanoid = getHumanoid()
+                        
                         if humanoid and humanoid.Health > 0 then
                             clickMouse()
                             task.wait(0.3) -- Đợi 0.3s giữa mỗi click
@@ -700,22 +747,31 @@ if game.PlaceId == 121864768012064 then
                             task.wait(1) -- Đợi respawn
                         end
                     end
+                    print("🛑 Click loop stopped")
                 end)
                 
                 -- Loop kiểm tra và re-equip nếu cần
                 task.spawn(function()
                     while fishing do
+                        local humanoid = getHumanoid()
+                        
                         if humanoid and humanoid.Health > 0 and not isEquipped then
+                            print("⚠️ Tool not equipped, re-equipping...")
                             autoequip()
                         end
                         task.wait(5) -- Kiểm tra mỗi 5 giây
                     end
+                    print("🛑 Re-equip loop stopped")
                 end)
             else
                 print("⏹️ Auto Farm stopped!")
+                
+                -- Cleanup
+                disconnectDeathHandler()
                 isEquipped = false
             end
         end
     }
     
+    print("✅ Fish It script loaded successfully!")
 end
