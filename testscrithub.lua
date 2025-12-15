@@ -1,40 +1,49 @@
--- ============================================
--- PICKAXE SIMULATOR AUTO FARM SCRIPT
--- ============================================
+--[[
+================================================================================
+    PICKAXE SIMULATOR AUTO FARM SCRIPT
+    Version: 1.0
+    Description: Auto farm, rebirth, mining, pets, and more
+================================================================================
+]]
 
 if game.PlaceId == 82013336390273 then
-    local CurrentVersion = "pickaxe simulator"
-
+    
     -- ============================================
-    -- LOAD MERCURY UI LIBRARY
+    -- CONFIGURATION
+    -- ============================================
+    local CurrentVersion = "Pickaxe Simulator"
+    
+    -- ============================================
+    -- LOAD UI LIBRARY
     -- ============================================
     local Mercury = loadstring(game:HttpGet("https://raw.githubusercontent.com/deeeity/mercury-lib/master/src.lua"))()
-
-    -- Create main GUI window
+    
     local GUI = Mercury:Create{
         Name = CurrentVersion,
         Size = UDim2.fromOffset(600, 400),
         Theme = Mercury.Themes.Dark,
         Link = "https://github.com/deeeity/mercury-lib"
     }
-
+    
     -- ============================================
-    -- SERVICES & REFERENCES
+    -- GAME SERVICES
     -- ============================================
+    local Players = game:GetService("Players")
     local RunService = game:GetService("RunService")
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
     local VirtualInputManager = game:GetService("VirtualInputManager")
-    local Players = game:GetService("Players")
     
+    -- ============================================
+    -- PLAYER REFERENCES
+    -- ============================================
     local player = Players.LocalPlayer
     local camera = workspace.CurrentCamera
-    local character = player.Character or player.CharacterAdded:Wait()
     
-    -- Get player stats references
+    -- Player stats
     local playerStats = ReplicatedStorage.Stats:WaitForChild(player.Name)
     local miningSpeedBoost = playerStats:WaitForChild("MiningSpeedBoost")
     local miningPower = playerStats:WaitForChild("Power")
-
+    
     -- ============================================
     -- STATE VARIABLES
     -- ============================================
@@ -47,16 +56,16 @@ if game.PlaceId == 82013336390273 then
     local isSpeedMiningEnabled = false
     local isPowerEnabled = false
     local isAutoRebirthEnabled = false
-    local timeteleback = 0
+    
     local selectedEgg = nil
     local selectedMiningSpeed = nil
     local selectedPower = nil
     local selectedRebirth = nil
     
     task.wait(0.5)
-
+    
     -- ============================================
-    -- LISTS
+    -- DROPDOWN LISTS
     -- ============================================
     local SpeedMiningList = {
         1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
@@ -74,105 +83,42 @@ if game.PlaceId == 82013336390273 then
     }
     
     local PowerMiningList = {
-        999, 
-        9999, 
-        99999, 
-        999999, 
-        9999999, 
-        99999999
+        999, 9999, 99999, 999999, 9999999, 99999999
     }
     
     local EggsList = {
-        "5M Egg",
-        "Angelic Egg",
-        "Aqua Egg",
-        "Aura Egg",
-        "Basic Egg",
-        "Beach Egg",
-        "Black Hole Egg",
-        "Cave Egg",
-        "Christmas Egg",
-        "Dark Egg",
-        "Electric Egg",
-        "Farm Egg",
-        "Forest Egg",
-        "Galaxy Egg",
-        "Garden Egg",
-        "Ice Egg",
-        "Lava Egg",
-        "Music Egg",
-        "Pixel Egg",
-        "Rare Egg",
-        "Rocket Egg",
-        "Sakura Egg",
-        "Sand Egg",
-        "Snow Egg",
-        "Sunny Egg",
-        "Toy Egg",
-        "UFO Egg",
-        "Winter Egg"
+        "5M Egg", "Angelic Egg", "Aqua Egg", "Aura Egg",
+        "Basic Egg", "Beach Egg", "Black Hole Egg", "Cave Egg",
+        "Christmas Egg", "Dark Egg", "Electric Egg", "Farm Egg",
+        "Forest Egg", "Galaxy Egg", "Garden Egg", "Ice Egg",
+        "Lava Egg", "Music Egg", "Pixel Egg", "Rare Egg",
+        "Rocket Egg", "Sakura Egg", "Sand Egg", "Snow Egg",
+        "Sunny Egg", "Toy Egg", "UFO Egg", "Winter Egg"
     }
-
+    
     -- ============================================
-    -- HELPER FUNCTIONS
+    -- GAME FUNCTIONS
     -- ============================================
     
-    -- Points camera downward at player's feet
-    local function pointCameraDown()
-        local character = player.Character
-        if not character then return end
-        
-        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-        if not humanoidRootPart then return end
-        
-        local playerPosition = humanoidRootPart.Position
-        camera.CFrame = CFrame.new(
-            camera.CFrame.Position, 
-            playerPosition + Vector3.new(0, -10, 0)
-        )
-    end
-
-    -- Simulates mouse click at center of screen
-    local function clickMouse()
-        local screenSize = camera.ViewportSize
-        local centerX = screenSize.X / 2
-        local centerY = screenSize.Y / 2
-        
-        -- Mouse down
-        VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, true, game, 0)
-        task.wait(0.05)
-        
-        -- Mouse up
-        VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, false, game, 0)
-    end
-
-    -- Toggles AutoMine setting via remote event
+    -- Toggle AutoMine
     local function toggleAutoMine()
-        local args = {
-            "Toggle Setting",
-            "AutoMine"
-        }
-        
+        local args = {"Toggle Setting", "AutoMine"}
         ReplicatedStorage:WaitForChild("Paper")
             :WaitForChild("Remotes")
             :WaitForChild("__remoteevent")
             :FireServer(unpack(args))
     end
-
-    -- Toggles AutoTrain setting via remote event
+    
+    -- Toggle AutoTrain
     local function toggleAutoTrain()
-        local args = {
-            "Toggle Setting",
-            "AutoTrain"
-        }
-        
+        local args = {"Toggle Setting", "AutoTrain"}
         ReplicatedStorage:WaitForChild("Paper")
             :WaitForChild("Remotes")
             :WaitForChild("__remoteevent")
             :FireServer(unpack(args))
     end
-
-    -- Automatically equips best pets based on power
+    
+    -- Auto equip best pets
     local function autoEquipBest()
         local args = {
             "Pet",
@@ -181,371 +127,338 @@ if game.PlaceId == 82013336390273 then
                 Sort = "Power"
             }
         }
-        
         ReplicatedStorage:WaitForChild("Paper")
             :WaitForChild("Remotes")
             :WaitForChild("__remotefunction")
             :InvokeServer(unpack(args))
     end
-
-    -- Sells all ores in inventory
+    
+    -- Sell all ores
     local function autoSellOres()
-        local args = {
-            "Sell All Ores"
-        }
-        
+        local args = {"Sell All Ores"}
         ReplicatedStorage:WaitForChild("Paper")
             :WaitForChild("Remotes")
             :WaitForChild("__remotefunction")
             :InvokeServer(unpack(args))
     end
-
-    -- Buys the next available pickaxe
+    
+    -- Buy pickaxe
     local function buyPickaxe()
-        local args = {
-            "Buy Pickaxe"
-        }
-        
+        local args = {"Buy Pickaxe"}
         ReplicatedStorage:WaitForChild("Paper")
             :WaitForChild("Remotes")
             :WaitForChild("__remotefunction")
             :InvokeServer(unpack(args))
     end
-
-    -- Buys the next available miner
+    
+    -- Buy miner
     local function buyMiner()
-        local args = {
-            "Buy Miner"
-        }
-        
+        local args = {"Buy Miner"}
         ReplicatedStorage:WaitForChild("Paper")
             :WaitForChild("Remotes")
             :WaitForChild("__remotefunction")
             :InvokeServer(unpack(args))
     end
-
-    -- Hatches the selected egg (3x)
+    
+    -- Hatch egg
     local function hatchEgg(eggName)
-        local args = {
-            "Hatch Egg",
-            eggName,
-            3  -- Hatch 3 eggs at once
-        }
-        
+        local args = {"Hatch Egg", eggName, 3}
         ReplicatedStorage:WaitForChild("Paper")
             :WaitForChild("Remotes")
             :WaitForChild("__remotefunction")
             :InvokeServer(unpack(args))
     end
-
-    -- Performs rebirth with selected amount
+    
+    -- Perform rebirth
     local function performRebirth(rebirthAmount)
-        local args = {
-            "Rebirth",
-            rebirthAmount
-        }
-        
+        local args = {"Rebirth", rebirthAmount}
         ReplicatedStorage:WaitForChild("Paper")
             :WaitForChild("Remotes")
             :WaitForChild("__remotefunction")
             :InvokeServer(unpack(args))
     end
-
-    -- Sets mining speed boost value
+    
+    -- Set mining speed
     local function setMiningSpeed(speed)
         if miningSpeedBoost then
             miningSpeedBoost.Value = speed
-            print("Mining speed set to: " .. speed)
+            print("⚡ Mining speed set to: " .. speed)
         end
     end
-
-    -- Sets mining power value
+    
+    -- Set mining power
     local function setMiningPower(power)
         if miningPower then
             miningPower.Value = power
-            print("Mining power set to: " .. power)
+            print("💪 Mining power set to: " .. power)
         end
     end
-
+    
     -- ============================================
     -- UI SETUP - FARM TAB
     -- ============================================
-    
     local FarmTab = GUI:Tab{
         Name = "Auto Farm",
         Icon = "rbxassetid://8569322835"
     }
-
-    -- Rebirth Selection Dropdown
-    local RebirthDropdown = FarmTab:Dropdown{
+    
+    -- Rebirth dropdown
+    FarmTab:Dropdown{
         Name = "Select Rebirth Amount",
         StartingText = "Select...",
-        Description = "Select your rebirth amount",
+        Description = "Choose rebirth amount",
         Items = RebirthList,
         Callback = function(item) 
             selectedRebirth = item
-            print("Selected rebirth amount: " .. selectedRebirth)
+            print("🔄 Selected rebirth: " .. selectedRebirth)
         end
     }
-
-    -- Auto Rebirth Toggle
+    
+    -- Auto rebirth toggle
     FarmTab:Toggle{
         Name = "Auto Rebirth",
         StartingState = false,
-        Description = "Automatically rebirths with selected amount",
+        Description = "Auto rebirth with selected amount",
         Callback = function(state) 
             isAutoRebirthEnabled = state
             
-            -- Main rebirth loop
             while isAutoRebirthEnabled do
                 if selectedRebirth then
                     performRebirth(selectedRebirth)
-                    print("Rebirthing with amount: " .. selectedRebirth)
-                    task.wait(1) -- Wait 1 second between rebirths
+                    print("🔄 Rebirthing: " .. selectedRebirth)
+                    task.wait(1)
                 else
-                    warn("No rebirth amount selected! Please select an amount first.")
+                    warn("⚠️ No rebirth amount selected!")
                     task.wait(2)
                 end
             end
         end
     }
-
-    -- Mining Power Selection Dropdown
-    local PowerMiningDropdown = FarmTab:Dropdown{
+    
+    -- Power dropdown
+    FarmTab:Dropdown{
         Name = "Select Your Power",
         StartingText = "Select...",
-        Description = "Select your mining power",
+        Description = "Choose mining power",
         Items = PowerMiningList,
         Callback = function(item) 
             selectedPower = item
-            print("Selected mining power: " .. selectedPower)
+            print("💪 Selected power: " .. selectedPower)
         end
     }
-
-    -- Mining Power Toggle
+    
+    -- Set power toggle
     FarmTab:Toggle{
         Name = "Set Mining Power",
         StartingState = false,
-        Description = "Applies the selected mining power",
+        Description = "Apply selected power",
         Callback = function(state) 
             isPowerEnabled = state
             
-            if isPowerEnabled then
-                if selectedPower then
-                    setMiningPower(selectedPower)
-                else
-                    warn("No mining power selected! Please select a power first.")
-                end
+            if isPowerEnabled and selectedPower then
+                setMiningPower(selectedPower)
+            elseif isPowerEnabled then
+                warn("⚠️ No power selected!")
             else
-                print("Mining power boost disabled")
+                print("❌ Power boost disabled")
             end
         end
     }
-
-    -- Mining Speed Selection Dropdown
-    local SpeedMiningDropdown = FarmTab:Dropdown{
-        Name = "Select Your Mining Speed",
+    
+    -- Speed dropdown
+    FarmTab:Dropdown{
+        Name = "Select Mining Speed",
         StartingText = "Select...",
-        Description = "Select your mining speed (1-20)",
+        Description = "Choose speed (1-20)",
         Items = SpeedMiningList,
         Callback = function(item) 
             selectedMiningSpeed = item
-            print("Selected mining speed: " .. selectedMiningSpeed)
+            print("⚡ Selected speed: " .. selectedMiningSpeed)
         end
     }
-
-    -- Mining Speed Boost Toggle
+    
+    -- Set speed toggle
     FarmTab:Toggle{
         Name = "Set Mining Speed",
         StartingState = false,
-        Description = "Applies the selected mining speed",
+        Description = "Apply selected speed",
         Callback = function(state) 
             isSpeedMiningEnabled = state
             
-            if isSpeedMiningEnabled then
-                if selectedMiningSpeed then
-                    setMiningSpeed(selectedMiningSpeed)
-                else
-                    warn("No mining speed selected! Please select a speed first.")
-                end
+            if isSpeedMiningEnabled and selectedMiningSpeed then
+                setMiningSpeed(selectedMiningSpeed)
+            elseif isSpeedMiningEnabled then
+                warn("⚠️ No speed selected!")
             else
-                print("Mining speed boost disabled")
+                print("❌ Speed boost disabled")
             end
         end
     }
-
-    -- Auto Buy Pickaxe Toggle
+    
+    -- Auto buy pickaxe
     FarmTab:Toggle{
         Name = "Auto Buy Pickaxe",
         StartingState = false,
-        Description = "Automatically buys next pickaxe upgrade",
+        Description = "Auto upgrade pickaxe",
         Callback = function(state) 
             isAutoBuyPickaxe = state
             
-            -- Main buy pickaxe loop
             while isAutoBuyPickaxe do
                 buyPickaxe()
-                task.wait(30) -- Check every 30 seconds
+                task.wait(30)
             end
         end
     }
-
-    -- Auto Buy Miner Toggle
+    
+    -- Auto buy miner
     FarmTab:Toggle{
         Name = "Auto Buy Miner",
         StartingState = false,
-        Description = "Automatically buys next miner upgrade",
+        Description = "Auto upgrade miner",
         Callback = function(state) 
             isAutoBuyMiner = state
             
-            -- Main buy miner loop
             while isAutoBuyMiner do
                 buyMiner()
-                task.wait(30) -- Check every 30 seconds
+                task.wait(30)
             end
         end
     }
-
-    -- Auto Equip Best Pets Toggle
+    
+    -- Auto equip best
     FarmTab:Toggle{
         Name = "Auto Equip Best",
         StartingState = false,
-        Description = "Automatically equips best pets by power",
+        Description = "Auto equip strongest pets",
         Callback = function(state) 
             isEquipBestEnabled = state
             
-            -- Main equip loop
             while isEquipBestEnabled do
                 autoEquipBest()
-                task.wait(20) -- Check every 20 seconds
+                task.wait(20)
             end
         end
     }
-
-    -- Auto Train Toggle
+    
+    -- Auto train
     FarmTab:Toggle{
         Name = "Auto Train",
         StartingState = false,
-        Description = "Automatically enables training",
+        Description = "Enable auto training",
         Callback = function(state) 
             isAutoTraining = state
             
-            -- Main training loop
             while isAutoTraining do
                 toggleAutoTrain()
-                task.wait(120) -- Check every 2 minutes
+                task.wait(120)
             end
         end
     }
-
-    -- Auto Mine Toggle
+    
+    -- Auto mine
     FarmTab:Toggle{
         Name = "Auto Mine",
         StartingState = false,
-        Description = "Automatically enables mining and sells ores",
+        Description = "Auto mine and sell ores",
         Callback = function(state) 
             isMining = state
             
-            -- Main mining loop
             while isMining do
                 toggleAutoMine()
-                task.wait(120) -- Mine for 2 minutes
+                task.wait(120)
                 
                 autoSellOres()
-                task.wait(5) -- Wait for sell to complete
+                task.wait(5)
             end
         end
     }
-
+    
     -- ============================================
     -- UI SETUP - PET TAB
     -- ============================================
-    
     local PetTab = GUI:Tab{
         Name = "Pet Tab",
         Icon = "rbxassetid://8569322835"
     }
-
-    -- Egg Selection Dropdown
-    local EggDropdown = PetTab:Dropdown{
+    
+    -- Egg dropdown
+    PetTab:Dropdown{
         Name = "Select Egg",
         StartingText = "Select...",
-        Description = "Select the egg you want to hatch",
+        Description = "Choose egg to hatch",
         Items = EggsList,
         Callback = function(item) 
             selectedEgg = item
-            print("Selected egg: " .. selectedEgg)
+            print("🥚 Selected egg: " .. selectedEgg)
         end
     }
-
-    -- Auto Hatch Toggle
+    
+    -- Auto hatch toggle
     PetTab:Toggle{
         Name = "Auto Hatch",
         StartingState = false,
-        Description = "Auto hatches the selected egg (3x)",
+        Description = "Auto hatch selected egg (3x)",
         Callback = function(state)
             isHatching = state
             
-            -- Main hatching loop
             while isHatching do
                 if selectedEgg then
                     hatchEgg(selectedEgg)
-                    task.wait(0.5) -- Wait between hatches
+                    task.wait(0.5)
                 else
-                    warn("No egg selected! Please select an egg first.")
-                    task.wait(2) -- Wait before checking again
+                    warn("⚠️ No egg selected!")
+                    task.wait(2)
                 end
             end
         end
     }
     
+    print("✅ Pickaxe Simulator script loaded!")
 end
 
--- ============================================
--- FISH IT AUTO FARM SCRIPT (ĐÃ SỬA LỖI)
--- ============================================
+--[[
+================================================================================
+    FISH IT AUTO FARM SCRIPT
+    Version: 1.0
+    Description: Auto fishing, location teleport, equipment management
+================================================================================
+]]
 
 if game.PlaceId == 121864768012064 then
+    
     -- ============================================
-    -- CÀI ĐẶT CƠ BẢN
+    -- CONFIGURATION
     -- ============================================
-    local CurrentVersion = "fish it"
-
-    -- Tải Mercury UI Library
+    local CurrentVersion = "Fish It"
+    
+    -- ============================================
+    -- LOAD UI LIBRARY
+    -- ============================================
     local Mercury = loadstring(game:HttpGet("https://raw.githubusercontent.com/deeeity/mercury-lib/master/src.lua"))()
-
-    -- Tạo cửa sổ GUI
+    
     local GUI = Mercury:Create{
         Name = CurrentVersion,
         Size = UDim2.fromOffset(600, 400),
         Theme = Mercury.Themes.Dark,
         Link = "https://github.com/deeeity/mercury-lib"
     }
-    local FarmTab = GUI:Tab{
-        Name = "Auto Farm",
-        Icon = "rbxassetid://8569322835"
-    }
-    local PetTab = GUI:Tab{
-        Name = "Pet Tab",
-        Icon = "rbxassetid://8569322835"
-    }
-
+    
     -- ============================================
-    -- SERVICES (Dịch vụ game)
+    -- GAME SERVICES
     -- ============================================
+    local Players = game:GetService("Players")
     local RunService = game:GetService("RunService")
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
     local VirtualInputManager = game:GetService("VirtualInputManager")
     local UserInputService = game:GetService("UserInputService")
-    local Players = game:GetService("Players")
     
     -- ============================================
-    -- PLAYER REFERENCES (Thông tin người chơi)
+    -- PLAYER REFERENCES
     -- ============================================
     local player = Players.LocalPlayer
     local camera = workspace.CurrentCamera
     
-    -- Sử dụng function để lấy character references mới nhất
+    -- Character reference helpers (always get fresh references)
     local function getCharacter()
         return player.Character
     end
@@ -559,36 +472,60 @@ if game.PlaceId == 121864768012064 then
         local char = getCharacter()
         return char and char:FindFirstChild("HumanoidRootPart")
     end
-
+    
     -- ============================================
-    -- BIẾN TRẠNG THÁI
+    -- STATE VARIABLES
     -- ============================================
     local fishing = false
     local selectedlocation = nil
     local isEquipped = false
-    local deathConnection = nil  -- Lưu connection để có thể disconnect
-
-    -- Map locations
-    local locationMap = {
-        ["Location 1"] = CFrame.new(-57.7402344, 5.54157162, 2786.78198, 1, 0, 0, 0, 1, 0, 0, 0, 1)
-    }
-
-    -- Table cho Dropdown (phải là strings)
-    local farmlocationtable = {"Location 1"}
-
-    task.wait(0.5)
-
+    local deathConnection = nil
+    
     -- ============================================
-    -- HÀM CHỨC NĂNG (ĐÃ SỬA)
+    -- LOCATION DATA
+    -- ============================================
+    local locationMap = {
+        ["Location 1"] = CFrame.new(93.4678192, 6.03939819, 2692.12573, 1, 0, 0, 0, 1, 0, 0, 0, 1)
+    }
+    
+    local farmlocationtable = {"Location 1"}
+    
+    task.wait(0.5)
+    
+    -- ============================================
+    -- GAME FUNCTIONS
     -- ============================================
     
-    -- Tự động trang bị fishing rod
+    -- Enable auto fishing
+    local function enableAutoFishing()
+        local args = {true}
+        game:GetService("ReplicatedStorage")
+            :WaitForChild("Packages")
+            :WaitForChild("_Index")
+            :WaitForChild("sleitnick_net@0.2.0")
+            :WaitForChild("net")
+            :WaitForChild("RF/UpdateAutoFishingState")
+            :InvokeServer(unpack(args))
+    end
+    
+    -- Disable auto fishing
+    local function disableAutoFishing()
+        local args = {false}
+        game:GetService("ReplicatedStorage")
+            :WaitForChild("Packages")
+            :WaitForChild("_Index")
+            :WaitForChild("sleitnick_net@0.2.0")
+            :WaitForChild("net")
+            :WaitForChild("RF/UpdateAutoFishingState")
+            :InvokeServer(unpack(args))
+    end
+    
+    -- Auto equip fishing rod
     local function autoequip()
-        if isEquipped then return end -- Tránh spam
+        if isEquipped then return end
         
         local success, err = pcall(function()
             local args = {1}
-            
             game:GetService("ReplicatedStorage")
                 :WaitForChild("Packages")
                 :WaitForChild("_Index")
@@ -598,7 +535,7 @@ if game.PlaceId == 121864768012064 then
                 :FireServer(unpack(args))
             
             isEquipped = true
-            print("✅ Equipped tool")
+            print("✅ Equipped fishing rod")
         end)
         
         if not success then
@@ -607,23 +544,22 @@ if game.PlaceId == 121864768012064 then
         end
     end
     
-    -- Disconnect death handler cũ trước khi tạo mới
+    -- Disconnect old death handler
     local function disconnectDeathHandler()
         if deathConnection then
             deathConnection:Disconnect()
             deathConnection = nil
-            print("🔌 Disconnected old death handler")
+            print("🔌 Disconnected death handler")
         end
     end
     
-    -- Theo dõi khi nhân vật chết và respawn
+    -- Setup death handler
     local function setupDeathHandler()
-        -- QUAN TRỌNG: Disconnect connection cũ trước khi tạo mới
         disconnectDeathHandler()
         
         local humanoid = getHumanoid()
         if not humanoid then 
-            warn("❌ Cannot setup death handler - no humanoid found")
+            warn("❌ Cannot setup death handler")
             return 
         end
         
@@ -631,26 +567,22 @@ if game.PlaceId == 121864768012064 then
             print("💀 Character died, waiting for respawn...")
             isEquipped = false
             
-            -- Đợi respawn
             local newCharacter = player.CharacterAdded:Wait()
             local newHumanoid = newCharacter:WaitForChild("Humanoid")
             local newHumanoidRootPart = newCharacter:WaitForChild("HumanoidRootPart")
             
-            task.wait(1) -- Đợi character load đầy đủ
+            task.wait(1)
             
-            -- Teleport về vị trí farm nếu đã chọn
             if selectedlocation and newHumanoidRootPart then
                 newHumanoidRootPart.CFrame = selectedlocation
-                print("📍 Teleported back to farm location")
+                print("📍 Teleported back")
             end
             
-            -- Trang bị lại
             task.wait(0.5)
             autoequip()
             
             print("✅ Respawned and re-equipped")
             
-            -- QUAN TRỌNG: Setup lại death handler cho character mới
             if fishing then
                 setupDeathHandler()
             end
@@ -659,37 +591,29 @@ if game.PlaceId == 121864768012064 then
         print("🔗 Death handler connected")
     end
     
-    -- Tự động click chuột
+    -- Auto click
     local function clickMouse()
         local humanoid = getHumanoid()
         local humanoidRootPart = getHumanoidRootPart()
         
-        if not humanoid or humanoid.Health <= 0 then 
+        if not humanoid or humanoid.Health <= 0 or not humanoidRootPart then 
             return 
         end
         
-        if not humanoidRootPart then 
-            return 
-        end
-        
-        -- Lấy vị trí chuột hiện tại trên màn hình
-        local success, err = pcall(function()
+        local success = pcall(function()
             local mousePos = UserInputService:GetMouseLocation()
             
-            -- Mouse down
             VirtualInputManager:SendMouseButtonEvent(mousePos.X, mousePos.Y, 0, true, game, 0)
             task.wait(0.05)
-            
-            -- Mouse up
             VirtualInputManager:SendMouseButtonEvent(mousePos.X, mousePos.Y, 0, false, game, 0)
         end)
         
         if not success then
-            warn("❌ Click failed:", err)
+            warn("❌ Click failed")
         end
     end
     
-    -- Teleport đến location
+    -- Teleport to location
     local function teleportToLocation(cframe)
         local humanoidRootPart = getHumanoidRootPart()
         if humanoidRootPart and cframe then
@@ -697,69 +621,72 @@ if game.PlaceId == 121864768012064 then
             print("📍 Teleported to location")
         end
     end
-
-    -- ============================================
-    -- TẠO UI (ĐÃ SỬA - ĐẶT ĐÚNG TAB)
-    -- ============================================
     
-    -- ĐẶT TRONG FARMTAB (không phải PetTab)
-    local locationDropDown = FarmTab:Dropdown{
-        Name = "Select Location to farm",
+    -- ============================================
+    -- UI SETUP - FARM TAB
+    -- ============================================
+    local FarmTab = GUI:Tab{
+        Name = "Auto Farm",
+        Icon = "rbxassetid://8569322835"
+    }
+    
+    -- Location dropdown
+    FarmTab:Dropdown{
+        Name = "Select Location",
         StartingText = "Select...",
-        Description = "Select the location you want to farm",
+        Description = "Choose fishing location",
         Items = farmlocationtable,
         Callback = function(item) 
             selectedlocation = locationMap[item]
-            print("Selected location: " .. item)
-            
-            -- Teleport đến location đã chọn
+            print("📍 Selected location: " .. item)
             teleportToLocation(selectedlocation)
         end
     }
     
-    -- ĐẶT TRONG FARMTAB (không phải PetTab)
+    -- Auto farm toggle
     FarmTab:Toggle{
         Name = "Auto Farm",
         StartingState = false,
-        Description = "Automatically enables Fishing",
+        Description = "Enable auto fishing",
         Callback = function(state) 
             fishing = state
             
             if fishing then
                 print("🎣 Auto Farm started!")
                 
-                -- Setup death handler một lần
-                setupDeathHandler()
+                -- Enable in-game auto fishing
+                enableAutoFishing()
                 
-                -- Trang bị lần đầu
+                -- Setup handlers
+                setupDeathHandler()
                 task.wait(0.5)
                 autoequip()
                 
-                -- Loop auto click
+                -- Auto click loop
                 task.spawn(function()
                     while fishing do
                         local humanoid = getHumanoid()
                         
                         if humanoid and humanoid.Health > 0 then
                             clickMouse()
-                            task.wait(0.3) -- Đợi 0.3s giữa mỗi click
+                            task.wait(0.3)
                         else
-                            task.wait(1) -- Đợi respawn
+                            task.wait(1)
                         end
                     end
                     print("🛑 Click loop stopped")
                 end)
                 
-                -- Loop kiểm tra và re-equip nếu cần
+                -- Re-equip check loop
                 task.spawn(function()
                     while fishing do
                         local humanoid = getHumanoid()
                         
                         if humanoid and humanoid.Health > 0 and not isEquipped then
-                            print("⚠️ Tool not equipped, re-equipping...")
+                            print("⚠️ Re-equipping tool...")
                             autoequip()
                         end
-                        task.wait(5) -- Kiểm tra mỗi 5 giây
+                        task.wait(5)
                     end
                     print("🛑 Re-equip loop stopped")
                 end)
@@ -773,5 +700,21 @@ if game.PlaceId == 121864768012064 then
         end
     }
     
-    print("✅ Fish It script loaded successfully!")
+    -- ============================================
+    -- UI SETUP - PET TAB
+    -- ============================================
+    local PetTab = GUI:Tab{
+        Name = "Pet Tab",
+        Icon = "rbxassetid://8569322835"
+    }
+    
+    PetTab:Button{
+        Name = "Coming Soon",
+        Description = "Pet features will be added soon",
+        Callback = function()
+            print("🐾 Pet features coming soon!")
+        end
+    }
+    
+    print("✅ Fish It script loaded!")
 end
