@@ -501,7 +501,7 @@ if game.PlaceId == 82013336390273 then
     
 end
 -- ============================================
--- fish it AUTO FARM SCRIPT
+-- PICKAXE SIMULATOR AUTO FARM SCRIPT
 -- ============================================
 
 if game.PlaceId == 121864768012064 then
@@ -519,6 +519,14 @@ if game.PlaceId == 121864768012064 then
         Size = UDim2.fromOffset(600, 400),
         Theme = Mercury.Themes.Dark,
         Link = "https://github.com/deeeity/mercury-lib"
+    }
+    local FarmTab = GUI:Tab{
+        Name = "Auto Farm",
+        Icon = "rbxassetid://8569322835"
+    }
+     local PetTab = GUI:Tab{
+        Name = "Pet Tab",
+        Icon = "rbxassetid://8569322835"
     }
 
     -- ============================================
@@ -635,10 +643,7 @@ end
     -- TẠO UI TABS
     -- ============================================
     
-    local FarmTab = GUI:Tab{
-        Name = "Auto Farm",
-        Icon = "rbxassetid://8569322835"
-    }
+    
      local locationDropDown = FarmTab:Dropdown{
     Name = "Select Location to farm",
     StartingText = "Select...",
@@ -677,9 +682,6 @@ end
     }
 
     
-    local PetTab = GUI:Tab{
-        Name = "Pet Tab",
-        Icon = "rbxassetid://8569322835"
-    }
+   
     
 end
