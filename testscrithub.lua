@@ -479,6 +479,7 @@ if game.PlaceId == 121864768012064 then
     local fishing = false
     local selectedlocation = nil
     local isEquipped = false
+    local autosellall =  false
     local deathConnection = nil
     
     -- ============================================
@@ -543,6 +544,25 @@ if game.PlaceId == 121864768012064 then
             isEquipped = false
         end
     end
+    -- FUNCTIONS auto sell
+    -- Sell all items
+local function sellAllItems()
+    local success, err = pcall(function()
+        game:GetService("ReplicatedStorage")
+            :WaitForChild("Packages")
+            :WaitForChild("_Index")
+            :WaitForChild("sleitnick_net@0.2.0")
+            :WaitForChild("net")
+            :WaitForChild("RF/SellAllItems")
+            :InvokeServer()
+        
+        print("💰 Sold all items!")
+    end)
+    
+    if not success then
+        warn("❌ Sell failed:", err)
+    end
+end
     
     -- Disconnect old death handler
     local function disconnectDeathHandler()
@@ -642,8 +662,22 @@ if game.PlaceId == 121864768012064 then
             teleportToLocation(selectedlocation)
         end
     }
+     FarmTab:Toggle{
+        Name = "Auto sell all",
+        StartingState = false,
+        Description = "Auto sell all",
+        Callback = function(state) 
+            autosellall = state
+            
+            while autosellall do
+                sellAllItems()
+                task.wait(20)
+            end
+        end
+    }
     
     -- Auto farm toggle
+
     FarmTab:Toggle{
         Name = "Auto Farm",
         StartingState = false,
