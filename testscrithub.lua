@@ -660,7 +660,7 @@ if game.PlaceId == 121864768012064 then
     -- TẠO UI
     -- ============================================
     
-    local locationDropDown = FarmTab:Dropdown{
+    local locationDropDown = PetTab:Dropdown{
         Name = "Select Location to farm",
         StartingText = "Select...",
         Description = "Select the location you want to farm",
@@ -674,7 +674,7 @@ if game.PlaceId == 121864768012064 then
         end
     }
     
-    FarmTab:Toggle{
+    PetTab:Toggle{
         Name = "Auto Farm",
         StartingState = false,
         Description = "Automatically enables Fishing",
