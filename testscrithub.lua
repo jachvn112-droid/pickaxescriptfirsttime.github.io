@@ -457,7 +457,7 @@ if game.PlaceId == 121864768012064 then
     local BAIT_POSITIONS = {
     bait1 = {x = 817, y = 395},   -- Bait slot 1
     bait2 = {x = 396, y = 439},   -- Bait slot 2
-    bait3 = {x = 432, y = 118},   -- Bait slot 3
+    bait3 = {x = 228, y = 232},   -- Bait slot 3
     bait4 = {x = 228, y = 247}    -- Bait slot 4
 }
 
