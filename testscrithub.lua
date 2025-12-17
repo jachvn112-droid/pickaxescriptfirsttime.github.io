@@ -454,7 +454,7 @@ if game.PlaceId == 121864768012064 then
     -- LOCATION DATA
     -- ============================================
     local locationMap = {
-        ["Location 1"] = CFrame.new(93.4678192, 6.03939819, 2692.12573, 1, 0, 0, 0, 1, 0, 0, 0, 1)
+        ["Location 1"] = CFrame.new(CFrame.new(101.310684, 10, 2732.28223, 0.0167741366, 0, -0.999859333, 0, 1, 0, 0.999859333, 0, 0.0167741366))
     }
     
     local farmLocationTable = {"Location 1"}
