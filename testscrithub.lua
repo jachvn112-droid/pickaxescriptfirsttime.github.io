@@ -451,6 +451,7 @@ if game.PlaceId == 121864768012064 then
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
     local VirtualInputManager = game:GetService("VirtualInputManager")
     local UserInputService = game:GetService("UserInputService")
+    local Items = ReplicatedStorage.Items
     
     -- ============================================
     -- PLAYER REFERENCES
@@ -476,11 +477,13 @@ if game.PlaceId == 121864768012064 then
     -- ============================================
     -- STATE VARIABLES
     -- ============================================
-    local fishing = false
+   local fishing = false
     local selectedlocation = nil
     local isEquipped = false
-    local autosellall =  false
+    local autosellall = false
     local deathConnection = nil
+    local selectedRod = nil
+    local isAutoBuyRod = falsel
     
     -- ============================================
     -- LOCATION DATA
@@ -489,25 +492,69 @@ if game.PlaceId == 121864768012064 then
         ["Location 1"] = CFrame.new(93.4678192, 6.03939819, 2692.12573, 1, 0, 0, 0, 1, 0, 0, 0, 1)
     }
     
-    local farmlocationtable = {"Location 1"}
+      task.wait(0.5)
+    -- ============================================
+    -- ROD DATA
+    -- ============================================
+    local rodsWithPrice = {}
+    local rodNamesList = {}
+    
     
     task.wait(0.5)
+
+    -- Lấy tất cả rod có Price
+    for _, item in pairs(Items:GetChildren()) do
+        if string.match(item.Name, "Rod$") then
+            local success, data = pcall(function()
+                return require(item)
+            end)
+            
+            if success and data.Price then
+                table.insert(rodsWithPrice, {
+                    Name = item.Name,
+                    Price = data.Price,
+                    Id = data.Data and data.Data.Id or 9999,
+                    ClickPower = data.ClickPower or 0,
+                    BaseLuck = data.RollData and data.RollData.BaseLuck or 0,
+                    Data = data
+                })
+            end
+        end
+    end
+    -- Sắp xếp theo ID tăng dần
+    table.sort(rodsWithPrice, function(a, b)
+        return a.Id < b.Id
+    end)
+      -- Tạo danh sách hiển thị "[ID] Name"
+    for _, rod in ipairs(rodsWithPrice) do
+        local displayName = string.format("[%d] %s", rod.Id, rod.Name)
+        table.insert(rodNamesList, displayName)
+    end
     
     -- ============================================
     -- GAME FUNCTIONS
     -- ============================================
     
     -- Enable auto fishing
-    local function enableAutoFishing()
-        local args = {true}
-        game:GetService("ReplicatedStorage")
-            :WaitForChild("Packages")
-            :WaitForChild("_Index")
-            :WaitForChild("sleitnick_net@0.2.0")
-            :WaitForChild("net")
-            :WaitForChild("RF/UpdateAutoFishingState")
-            :InvokeServer(unpack(args))
-    end
+     
+    local function buyRod(rodName)
+        if not rodName then
+            warn("⚠️ No rod name provided!")
+            return
+        end
+        
+        local success, err = pcall(function()
+            local args = {rodName}
+            game:GetService("ReplicatedStorage")
+                :WaitForChild("Packages")
+                :WaitForChild("_Index")
+                :WaitForChild("sleitnick_net@0.2.0")
+                :WaitForChild("net")
+                :WaitForChild("RF/PurchaseFishingRod")
+                :InvokeServer(unpack(args))
+            
+            print("✅ Bought:", rodName)
+        end)
     
     -- Disable auto fishing
     local function disableAutoFishing()
@@ -562,6 +609,23 @@ local function sellAllItems()
     if not success then
         warn("❌ Sell failed:", err)
     end
+end
+
+local function buyitem()
+    local success, err = pcall(function ()
+         game:GetService("ReplicatedStorage")
+            :WaitForChild("Packages")
+            :WaitForChild("_Index")
+            :WaitForChild("sleitnick_net@0.2.0")
+            :WaitForChild("net")
+            :WaitForChild("RF/PurchaseFishingRod")
+            :InvokeServer()
+        print("buy rod")
+    end)
+    if not success then
+        warn(err)
+    end
+    
 end
     
     -- Disconnect old death handler
@@ -648,6 +712,72 @@ end
     local FarmTab = GUI:Tab{
         Name = "Auto Farm",
         Icon = "rbxassetid://8569322835"
+    }
+     FarmTab:Dropdown{
+        Name = "Select Rod to Buy",
+        StartingText = "Select a rod...",
+        Description = "Sorted by ID",
+        Items = rodNamesList,
+        Callback = function(item) 
+            -- Tách tên từ "[ID] Name"
+            local rodName = string.match(item, "%] (.+)$") or item
+            selectedRod = rodName
+            
+            for _, rod in ipairs(rodsWithPrice) do
+                if rod.Name == rodName then
+                    print("═══════════════════════════════════")
+                    print("🆔 ID:", rod.Id)
+                    print("🎣 Rod:", rod.Name)
+                    print("💰 Price:", string.format("%d", rod.Price))
+                    print("💪 Click Power:", rod.ClickPower)
+                    print("🍀 Luck:", rod.BaseLuck)
+                    print("═══════════════════════════════════")
+                    break
+                end
+            end
+        end
+    }
+    FarmTab:Toggle{
+    Name = "Auto Buy Rod",
+    StartingState = false,
+    Description = "Auto buy selected rod every 60s",
+    Callback = function(state) 
+        isAutoBuyRod = state
+        
+        if isAutoBuyRod and not selectedRod then
+            warn("⚠️ Please select a rod first!")
+            return
+        end
+        
+        task.spawn(function()
+            while isAutoBuyRod do
+                if selectedRod then
+                    buyRod(selectedRod)
+                    task.wait(60)
+                else
+                    warn("⚠️ No rod selected!")
+                    task.wait(5)
+                end
+            end
+        end)
+        
+        if state then
+            print("✅ Auto Buy Rod enabled for:", selectedRod)
+        else
+            print("❌ Auto Buy Rod disabled")
+        end
+    end
+}
+  FarmTab:Button{
+        Name = "Buy Selected Rod Now",
+        Description = "Buy immediately",
+        Callback = function()
+            if selectedRod then
+                buyRod(selectedRod)
+            else
+                warn("⚠️ Please select a rod first!")
+            end
+        end
     }
     
     -- Location dropdown
