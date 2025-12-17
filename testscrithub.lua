@@ -449,6 +449,18 @@ if game.PlaceId == 121864768012064 then
     local selectedBait = nil  -- Stores bait ID (number), not name
     local isAutoBuyRod = false
     local isAutoBuyBait = false
+    local POSITIONS = {
+    openInventory = {x = 292, y = 414},   -- Vị trí 1: Mở Inventory
+    equipRod = {x = 237, y = 238},        -- Vị trí 2: Equip Rod
+    exitButton = {x = 715, y = 95}        -- Vị trí 3: Exit Button
+}
+    local BAIT_POSITIONS = {
+    bait1 = {x = 817, y = 395},   -- Bait slot 1
+    bait2 = {x = 396, y = 439},   -- Bait slot 2
+    bait3 = {x = 432, y = 118},   -- Bait slot 3
+    bait4 = {x = 228, y = 247}    -- Bait slot 4
+}
+
     
     -- ============================================
     -- LOCATION DATA
@@ -609,7 +621,10 @@ if game.PlaceId == 121864768012064 then
             warn("❌ Buy bait failed:", err)
         end
     end
-    
+    local function autoexitbutton()
+        game:GetService("Players").LocalPlayer.PlayerGui.Inventory.Enabled =  false
+    end
+
     local function autoEquip()
         if isEquipped then return end
         
@@ -716,6 +731,40 @@ if game.PlaceId == 121864768012064 then
             warn("❌ Click failed")
         end
     end
+    local function clickAt(x, y, waitTime)
+    waitTime = waitTime or 0.1
+    
+    -- Mouse down
+    VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 0)
+    task.wait(0.05)
+    
+    -- Mouse up
+    VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 0)
+    task.wait(waitTime)
+end
+    local function autoequipbait()
+        task.wait(5)
+        clickAt(BAIT_POSITIONS.bait1.x, BAIT_POSITIONS.bait1.y, 1)
+        clickAt(BAIT_POSITIONS.bait2.x, BAIT_POSITIONS.bait2.y, 1)
+        clickAt(BAIT_POSITIONS.bait3.x, BAIT_POSITIONS.bait3.y, 1)
+        task.wait(2)
+        autoexitbutton()
+        end
+    local function autoEquipRod()
+    print("🎣 Bắt đầu equip rod...")
+    
+    -- Bước 1: Mở Inventory
+    print("📦 Mở Inventory...")
+    clickAt(POSITIONS.openInventory.x, POSITIONS.openInventory.y, 1)
+    
+    -- Bước 2: Equip Rod mạnh nhất
+    print("⚡ Equip Rod...")
+    clickAt(POSITIONS.equipRod.x, POSITIONS.equipRod.y, 0.5)
+    task.wait(2)
+    
+   autoexitbutton()
+end
+
     
     local function teleportToLocation(cframe)
         local humanoidRootPart = getHumanoidRootPart()
@@ -775,6 +824,7 @@ if game.PlaceId == 121864768012064 then
                 while isAutoBuyRod do
                     if selectedRod then
                         buyRod(selectedRod)
+                        autoEquipRod()
                         task.wait(60)
                     else
                         warn("⚠️ No rod selected!")
@@ -790,6 +840,7 @@ if game.PlaceId == 121864768012064 then
             end
         end
     }
+
     
     -- BUY ROD NOW BUTTON
     FarmTab:Button{
@@ -799,6 +850,7 @@ if game.PlaceId == 121864768012064 then
             if selectedRod then
                 print("💰 Purchasing rod ID:", selectedRod)
                 buyRod(selectedRod)
+                autoEquipRod()
             else
                 warn("⚠️ Please select a rod first!")
             end
@@ -846,6 +898,7 @@ if game.PlaceId == 121864768012064 then
                 while isAutoBuyBait do
                     if selectedBait then
                         buyBait(selectedBait)
+                        autoequipbait()
                         task.wait(60)
                     else
                         warn("⚠️ No bait selected!")
@@ -870,6 +923,7 @@ if game.PlaceId == 121864768012064 then
             if selectedBait then
                 print("💰 Purchasing bait ID:", selectedBait)
                 buyBait(selectedBait)
+                autoequipbait()
             else
                 warn("⚠️ Please select a bait first!")
             end
