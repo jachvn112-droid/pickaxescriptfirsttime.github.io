@@ -456,8 +456,6 @@ if game.PlaceId == 121864768012064 then
     local selectedRod = nil
     local selectedBait = nil
     local selectedRarities = {}
-    local selectedMutations = {}
-    local selectedFishNames = {}
     
     local deathConnection = nil
     local autoFavoriteThread = nil
@@ -814,40 +812,6 @@ if game.PlaceId == 121864768012064 then
     -- Rarity list for dropdown
     local RarityList = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "SECRET"}
     
-    -- Mutation list for dropdown
-    local MutationList = {
-        "Shiny", "Gemstone", "Corrupt", "Galaxy", "Holographic", 
-        "Ghost", "Lightning", "Fairy Dust", "Gold", "Midnight", 
-        "Radioactive", "Stone", "Albino", "Sandy", "Acidic", 
-        "Disco", "Frozen", "Noob"
-    }
-    
-    -- Get all fish/item names from ReplicatedStorage
-    local function getAllItemNames()
-        local itemNames = {}
-        local itemsContainer = ReplicatedStorage:FindFirstChild("Items")
-        
-        if not itemsContainer then
-            return {"(No items found)"}
-        end
-        
-        for _, itemObject in ipairs(itemsContainer:GetChildren()) do
-            local itemName = itemObject.Name
-            -- Skip items starting with "!!!" and rods
-            if type(itemName) == "string" and #itemName >= 3 then
-                local prefix = itemName:sub(1, 3)
-                if prefix ~= "!!!" and not itemName:match("Rod$") then
-                    table.insert(itemNames, itemName)
-                end
-            end
-        end
-        
-        table.sort(itemNames)
-        return #itemNames > 0 and itemNames or {"(No items found)"}
-    end
-    
-    local AllItemNames = getAllItemNames()
-    
     -- Get fish name and rarity from item data
     local function getFishNameAndRarity(item)
         local name = item.Identifier or "Unknown"
@@ -881,15 +845,7 @@ if game.PlaceId == 121864768012064 then
         return name, rarity
     end
     
-    -- Get mutation string from item
-    local function getItemMutation(item)
-        if item.Metadata and item.Metadata.Shiny == true then
-            return "Shiny"
-        end
-        return item.Metadata and item.Metadata.VariantId or ""
-    end
-    
-    -- Get items that should be favorited
+    -- Get items that should be favorited (chỉ check rarity)
     local function getItemsToFavorite()
         local replion = GetPlayerDataReplion()
         if not replion then return {} end
@@ -904,13 +860,8 @@ if game.PlaceId == 121864768012064 then
         
         local itemsToFavorite = {}
         
-        -- Check if any filter is active
-        local isRarityFilterActive = #selectedRarities > 0
-        local isNameFilterActive = #selectedFishNames > 0
-        local isMutationFilterActive = #selectedMutations > 0
-        
-        -- No filters selected = don't favorite anything
-        if not (isRarityFilterActive or isNameFilterActive or isMutationFilterActive) then
+        -- No rarity selected = don't favorite anything
+        if #selectedRarities == 0 then
             return {}
         end
         
@@ -927,26 +878,9 @@ if game.PlaceId == 121864768012064 then
             end
             
             local name, rarity = getFishNameAndRarity(item)
-            local mutation = getItemMutation(item)
             
-            local isMatch = false
-            
-            -- Check rarity filter
-            if isRarityFilterActive and table.find(selectedRarities, rarity) then
-                isMatch = true
-            end
-            
-            -- Check name filter
-            if not isMatch and isNameFilterActive and table.find(selectedFishNames, name) then
-                isMatch = true
-            end
-            
-            -- Check mutation filter
-            if not isMatch and isMutationFilterActive and table.find(selectedMutations, mutation) then
-                isMatch = true
-            end
-            
-            if isMatch then
+            -- Check if rarity matches any selected rarity
+            if table.find(selectedRarities, rarity) then
                 table.insert(itemsToFavorite, itemUUID)
             end
         end
@@ -1308,94 +1242,53 @@ if game.PlaceId == 121864768012064 then
         Icon = "rbxassetid://8569322835"
     })
     
-    -- Filter by Rarity
+    -- Select Rarity to Auto Favorite
     FavoriteTab:Dropdown({
-        Name = "Filter by Rarity",
-        StartingText = "Select rarities...",
-        Description = "Auto favorite ALL fish of selected rarity (no need to pick fish names)",
+        Name = "Select Rarity",
+        StartingText = "Choose rarity...",
+        Description = "Chọn rarity → Tự động favorite TẤT CẢ cá loại đó!",
         Items = RarityList,
         Callback = function(item)
             -- Toggle selection
             local index = table.find(selectedRarities, item)
             if index then
                 table.remove(selectedRarities, index)
-                print("⭐ Removed rarity:", item)
+                print("⭐ Đã bỏ chọn:", item)
             else
                 table.insert(selectedRarities, item)
-                print("⭐ Added rarity:", item, "- Will favorite ALL", item, "fish!")
+                print("⭐ Đã chọn:", item, "→ Sẽ favorite TẤT CẢ cá", item, "!")
             end
             if #selectedRarities > 0 then
-                print("⭐ Active rarities:", table.concat(selectedRarities, ", "))
-            end
-        end
-    })
-    
-    -- Filter by Mutation
-    FavoriteTab:Dropdown({
-        Name = "Filter by Mutation",
-        StartingText = "Select mutations...",
-        Description = "Auto favorite ALL fish with selected mutation (optional)",
-        Items = MutationList,
-        Callback = function(item)
-            -- Toggle selection
-            local index = table.find(selectedMutations, item)
-            if index then
-                table.remove(selectedMutations, index)
-                print("⭐ Removed mutation:", item)
+                print("⭐ Đang chọn:", table.concat(selectedRarities, ", "))
             else
-                table.insert(selectedMutations, item)
-                print("⭐ Added mutation:", item, "- Will favorite ALL", item, "fish!")
-            end
-            if #selectedMutations > 0 then
-                print("⭐ Active mutations:", table.concat(selectedMutations, ", "))
+                print("⭐ Chưa chọn rarity nào")
             end
         end
     })
     
-    -- Filter by Fish Name
-    FavoriteTab:Dropdown({
-        Name = "Filter by Fish Name",
-        StartingText = "Select fish...",
-        Description = "(Optional) Add specific fish names to favorite",
-        Items = AllItemNames,
-        Callback = function(item)
-            -- Toggle selection
-            local index = table.find(selectedFishNames, item)
-            if index then
-                table.remove(selectedFishNames, index)
-                print("⭐ Removed fish:", item)
-            else
-                table.insert(selectedFishNames, item)
-                print("⭐ Added fish:", item)
-            end
-            if #selectedFishNames > 0 then
-                print("⭐ Active fish names:", table.concat(selectedFishNames, ", "))
-            end
-        end
-    })
-    
-    -- Clear All Filters Button
+    -- Clear Selection Button
     FavoriteTab:Button({
-        Name = "Clear All Filters",
-        Description = "Reset all favorite filters",
+        Name = "Clear Selection",
+        Description = "Bỏ chọn tất cả rarity",
         Callback = function()
             selectedRarities = {}
-            selectedMutations = {}
-            selectedFishNames = {}
-            print("⭐ All filters cleared!")
+            print("⭐ Đã bỏ chọn tất cả!")
         end
     })
     
-    -- Show Current Filters Button
+    -- Show Current Selection Button
     FavoriteTab:Button({
-        Name = "Show Current Filters",
-        Description = "Display active filters",
+        Name = "Show Selection",
+        Description = "Hiển thị rarity đang chọn",
         Callback = function()
             print("═══════════════════════════════════")
-            print("⭐ CURRENT FAVORITE FILTERS:")
-            print("  Rarities:", #selectedRarities > 0 and table.concat(selectedRarities, ", ") or "None")
-            print("  Mutations:", #selectedMutations > 0 and table.concat(selectedMutations, ", ") or "None")
-            print("  Fish Names:", #selectedFishNames > 0 and table.concat(selectedFishNames, ", ") or "None")
+            print("⭐ ĐANG CHỌN:")
+            if #selectedRarities > 0 then
+                print("  Rarity:", table.concat(selectedRarities, ", "))
+                print("  → Sẽ favorite TẤT CẢ cá có rarity này!")
+            else
+                print("  Chưa chọn rarity nào")
+            end
             print("═══════════════════════════════════")
         end
     })
@@ -1404,46 +1297,35 @@ if game.PlaceId == 121864768012064 then
     FavoriteTab:Toggle({
         Name = "Enable Auto Favorite",
         StartingState = false,
-        Description = "ON = Auto favorite fish matching ANY selected filter",
+        Description = "BẬT = Tự động favorite cá theo rarity đã chọn",
         Callback = function(state)
             autoFavorite = state
             
             if autoFavorite then
-                -- Check if any filter is selected
-                local hasFilters = #selectedRarities > 0 or 
-                                   #selectedMutations > 0 or 
-                                   #selectedFishNames > 0
-                
-                if not hasFilters then
-                    warn("⚠️ Select at least one rarity, mutation, or fish name first!")
+                -- Check if rarity is selected
+                if #selectedRarities == 0 then
+                    warn("⚠️ Hãy chọn ít nhất 1 rarity trước!")
                     autoFavorite = false
                     return
                 end
                 
                 -- Check if Replion is available
                 if not GetPlayerDataReplion() then
-                    warn("⚠️ Failed to load player data!")
+                    warn("⚠️ Không thể load player data!")
                     autoFavorite = false
                     return
                 end
                 
                 -- Show what will be favorited
                 print("═══════════════════════════════════")
-                print("⭐ AUTO FAVORITE ENABLED!")
-                if #selectedRarities > 0 then
-                    print("  → Will favorite ALL:", table.concat(selectedRarities, ", "), "fish")
-                end
-                if #selectedMutations > 0 then
-                    print("  → Will favorite ALL:", table.concat(selectedMutations, ", "), "fish")
-                end
-                if #selectedFishNames > 0 then
-                    print("  → Will favorite:", table.concat(selectedFishNames, ", "))
-                end
+                print("⭐ AUTO FAVORITE BẬT!")
+                print("  → Sẽ favorite TẤT CẢ cá:", table.concat(selectedRarities, ", "))
+                print("  → Không phân biệt mutation hay tên cá!")
                 print("═══════════════════════════════════")
                 
                 runAutoFavoriteLoop()
             else
-                print("⭐ Auto Favorite disabled!")
+                print("⭐ Auto Favorite TẮT!")
                 stopAutoFavorite()
             end
         end
