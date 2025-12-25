@@ -1614,5 +1614,5 @@ if game.PlaceId == 121864768012064 then
         end
     })
     
-    print("✅ Fish It script loaded!")
+    print("✅ Fish It script sssssloaded!")
 end
