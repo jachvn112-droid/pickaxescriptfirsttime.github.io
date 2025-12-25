@@ -546,15 +546,64 @@ if game.PlaceId == 121864768012064 then
     
     local function GetPlayerDataReplion()
         if PlayerDataReplion then return PlayerDataReplion end
+        
         local ReplionModule = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Replion", 10)
         if not ReplionModule then 
             warn("❌ Replion module không tìm thấy!")
             return nil 
         end
-        local ReplionClient = require(ReplionModule).Client
-        -- Fish It dùng " " (space) thay vì "Data"
-        PlayerDataReplion = ReplionClient:WaitReplion(" ", 5)
-        return PlayerDataReplion
+        
+        local success, ReplionClient = pcall(function()
+            return require(ReplionModule).Client
+        end)
+        
+        if not success or not ReplionClient then
+            warn("❌ Không thể require Replion.Client!")
+            return nil
+        end
+        
+        -- Thử nhiều tên khác nhau
+        local replionNames = {" ", "Data", "PlayerData", ""}
+        
+        for _, name in ipairs(replionNames) do
+            local ok, replion = pcall(function()
+                return ReplionClient:WaitReplion(name, 3)
+            end)
+            
+            if ok and replion then
+                print("✅ Tìm thấy Replion với tên:", name == " " and "(space)" or (name == "" and "(empty)" or name))
+                PlayerDataReplion = replion
+                return PlayerDataReplion
+            end
+        end
+        
+        -- Nếu không tìm thấy, thử lấy tất cả replions
+        print("🔍 Đang tìm tất cả Replions...")
+        pcall(function()
+            local allReplions = ReplionClient:GetReplions()
+            if allReplions then
+                print("📋 Danh sách Replions:")
+                for name, replion in pairs(allReplions) do
+                    print("  →", name)
+                    -- Lấy cái đầu tiên có Inventory
+                    local hasInventory = pcall(function()
+                        return replion:GetExpect("Inventory")
+                    end)
+                    if hasInventory then
+                        print("  ✅ Replion này có Inventory!")
+                        PlayerDataReplion = replion
+                        return
+                    end
+                end
+            end
+        end)
+        
+        if PlayerDataReplion then
+            return PlayerDataReplion
+        end
+        
+        warn("❌ Không tìm thấy Replion data phù hợp!")
+        return nil
     end
     
     -- ══════════════════════════════════════════════════════════════════════
@@ -1298,6 +1347,115 @@ if game.PlaceId == 121864768012064 then
     local FavoriteTab = GUI:Tab({
         Name = "Auto Favorite",
         Icon = "rbxassetid://8569322835"
+    })
+    
+    -- Debug: Test Replion Connection
+    FavoriteTab:Button({
+        Name = "🔧 Debug: Test Replion",
+        Description = "Kiểm tra kết nối Replion",
+        Callback = function()
+            print("═══════════════════════════════════")
+            print("🔧 ĐANG TEST REPLION CONNECTION...")
+            
+            -- Reset cache để test lại
+            PlayerDataReplion = nil
+            
+            local ReplionModule = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Replion", 10)
+            if not ReplionModule then 
+                warn("❌ Replion module không tìm thấy trong Packages!")
+                
+                -- Thử tìm ở chỗ khác
+                print("🔍 Đang tìm Replion ở các vị trí khác...")
+                for _, child in pairs(ReplicatedStorage:GetDescendants()) do
+                    if child.Name == "Replion" then
+                        print("  → Tìm thấy:", child:GetFullName())
+                    end
+                end
+                return
+            end
+            
+            print("✅ Replion module tìm thấy:", ReplionModule:GetFullName())
+            
+            local success, ReplionClient = pcall(function()
+                return require(ReplionModule).Client
+            end)
+            
+            if not success then
+                warn("❌ Lỗi require Replion:", ReplionClient)
+                return
+            end
+            
+            print("✅ Replion.Client loaded")
+            
+            -- Thử lấy tất cả replions
+            print("")
+            print("🔍 Đang tìm tất cả Replions...")
+            
+            local getAllSuccess, allReplions = pcall(function()
+                return ReplionClient:GetReplions()
+            end)
+            
+            if getAllSuccess and allReplions then
+                print("📋 Danh sách Replions có sẵn:")
+                local count = 0
+                for name, replion in pairs(allReplions) do
+                    count = count + 1
+                    local displayName = name
+                    if name == " " then displayName = "(space)" end
+                    if name == "" then displayName = "(empty)" end
+                    print(string.format("  %d. '%s'", count, displayName))
+                    
+                    -- Thử đọc Inventory từ replion này
+                    local invSuccess, invData = pcall(function()
+                        return replion:GetExpect("Inventory")
+                    end)
+                    
+                    if invSuccess and invData then
+                        print("      ✅ Có Inventory!")
+                        if invData.Items then
+                            print("      ✅ Có Items! Count:", #invData.Items)
+                        else
+                            print("      ⚠️ Không có field 'Items'")
+                            -- In ra các keys
+                            for key, _ in pairs(invData) do
+                                print("        →", key)
+                            end
+                        end
+                    else
+                        print("      ❌ Không có Inventory")
+                    end
+                end
+                
+                if count == 0 then
+                    print("  (Không tìm thấy replion nào)")
+                end
+            else
+                warn("❌ Không thể lấy danh sách Replions")
+                
+                -- Thử WaitReplion với các tên khác nhau
+                print("")
+                print("🔍 Thử WaitReplion với các tên...")
+                local names = {" ", "Data", "PlayerData", "", "Player"}
+                
+                for _, name in ipairs(names) do
+                    local ok, replion = pcall(function()
+                        return ReplionClient:WaitReplion(name, 2)
+                    end)
+                    
+                    local displayName = name
+                    if name == " " then displayName = "(space)" end
+                    if name == "" then displayName = "(empty)" end
+                    
+                    if ok and replion then
+                        print(string.format("  ✅ '%s' → Tìm thấy!", displayName))
+                    else
+                        print(string.format("  ❌ '%s' → Không tìm thấy", displayName))
+                    end
+                end
+            end
+            
+            print("═══════════════════════════════════")
+        end
     })
     
     -- Select Rarity to Auto Favorite
