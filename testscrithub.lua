@@ -861,173 +861,132 @@ if game.PlaceId == 121864768012064 then
     -- ══════════════════════════════════════════════════════════════════════
     -- AUTO FAVORITE FISH SYSTEM
     -- ══════════════════════════════════════════════════════════════════════
+    --[[
+        FIX: Sửa lỗi rarity sai (hiện Common thay vì SECRET)
+        - Dùng TierUtility:GetTierFromRarity() thay vì GetTierFromChance()
+        - Copy cách làm từ module macu fake.lua
+        - Rarity list: Common, Uncommon, Rare, Epic, Legendary, Mythic, SECRET
+    ]]
     
-    -- Rarity list for dropdown (dùng chữ thường để so sánh)
-    local RarityList = {"common", "uncommon", "rare", "epic", "legendary", "mythic", "secret"}
+    local RarityList = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "SECRET"}
     
-    -- Get fish name and rarity from item data
+    -- Lấy tên và rarity của cá (copy từ module macu fake.lua)
     local function getFishNameAndRarity(item)
         local name = item.Identifier or "Unknown"
-        local rarity = "common"
+        local rarity = item.Metadata and item.Metadata.Rarity or "COMMON"
+        local itemID = item.Id
+        local itemData = nil
         
-        -- Try to get from metadata
-        if item.Metadata and item.Metadata.Rarity then
-            rarity = string.lower(tostring(item.Metadata.Rarity))
+        -- Lấy item data từ ItemUtility
+        if ItemUtility and itemID then
+            pcall(function()
+                itemData = ItemUtility:GetItemData(itemID)
+                if not itemData then
+                    local numericID = tonumber(item.Id) or tonumber(item.Identifier)
+                    if numericID then
+                        itemData = ItemUtility:GetItemData(numericID)
+                    end
+                end
+            end)
         end
         
-        -- Try to get proper name from ItemUtility
-        local itemID = item.Id
-        if ItemUtility and itemID then
-            local success, itemData = pcall(function()
-                return ItemUtility:GetItemData(itemID)
+        -- Lấy tên từ itemData
+        if itemData and itemData.Data and itemData.Data.Name then
+            name = itemData.Data.Name
+        end
+        
+        -- Lấy rarity: ưu tiên Metadata, sau đó dùng TierUtility
+        if item.Metadata and item.Metadata.Rarity then
+            rarity = item.Metadata.Rarity
+        elseif itemData and itemData.Probability and itemData.Probability.Chance and TierUtility then
+            pcall(function()
+                local tierObj = TierUtility:GetTierFromRarity(itemData.Probability.Chance)
+                if tierObj and tierObj.Name then
+                    rarity = tierObj.Name
+                end
             end)
-            if success and itemData and itemData.Data and itemData.Data.Name then
-                name = itemData.Data.Name
-            end
-            -- Get rarity from TierUtility if not in metadata
-            if success and itemData and itemData.Probability and itemData.Probability.Chance and TierUtility then
-                pcall(function()
-                    local tierName = TierUtility:GetTierFromChance(itemData.Probability.Chance)
-                    if tierName then
-                        rarity = string.lower(tostring(tierName))
-                    end
-                end)
-            end
         end
         
         return name, rarity
     end
     
-    -- Get items that should be favorited (chỉ check rarity)
+    -- Lấy mutation của cá
+    local function getItemMutation(item)
+        if item.Metadata and item.Metadata.Shiny == true then 
+            return "Shiny" 
+        end
+        return item.Metadata and item.Metadata.VariantId or ""
+    end
+    
+    -- Lấy danh sách cá cần favorite (chỉ check rarity)
     local function getItemsToFavorite()
         local replion = GetPlayerDataReplion()
-        if not replion then 
-            print("⚠️ [Auto Favorite] Không thể lấy Replion data")
-            return {} 
-        end
+        if not replion then return {} end
         
         local success, inventoryData = pcall(function()
             return replion:GetExpect("Inventory")
         end)
         
-        if not success or not inventoryData then
-            print("⚠️ [Auto Favorite] Không thể đọc Inventory")
-            return {}
-        end
-        
-        -- Fish It inventory structure: inventoryData.Items là array của items
-        if not inventoryData.Items then
-            print("⚠️ [Auto Favorite] inventoryData.Items không tồn tại")
-            -- Debug: xem có gì trong inventory
-            print("  → Keys trong inventoryData:")
-            for key, value in pairs(inventoryData) do
-                print("    →", key, ":", type(value))
-            end
-            return {}
-        end
-        
-        local items = inventoryData.Items
-        
-        if type(items) ~= "table" then
-            print("⚠️ [Auto Favorite] Items không phải table")
+        if not success or not inventoryData or not inventoryData.Items then
             return {}
         end
         
         local itemsToFavorite = {}
+        if #selectedRarities == 0 then return {} end
         
-        -- No rarity selected = don't favorite anything
-        if #selectedRarities == 0 then
-            print("⚠️ [Auto Favorite] Chưa chọn rarity nào")
-            return {}
-        end
-        
-        print("🔍 [Auto Favorite] Đang scan inventory... Tìm rarity:", table.concat(selectedRarities, ", "))
-        
-        local totalItems = 0
-        local alreadyFavorited = 0
-        local matched = 0
-        
-        -- Dùng ipairs như module macu fake.lua
-        for _, item in ipairs(items) do
+        for _, item in ipairs(inventoryData.Items) do
             if type(item) ~= "table" then continue end
             
-            totalItems = totalItems + 1
+            -- Bỏ qua nếu đã favorite
+            if item.IsFavorite == true or item.Favorited == true then continue end
             
-            -- Skip if already favorited (check cả 2 field)
-            if item.IsFavorite == true or item.Favorited == true then
-                alreadyFavorited = alreadyFavorited + 1
-                continue
-            end
-            
-            -- Validate UUID
+            -- Check UUID hợp lệ
             local itemUUID = item.UUID
-            if typeof(itemUUID) ~= "string" or string.len(itemUUID) < 10 then
-                continue
-            end
+            if typeof(itemUUID) ~= "string" or #itemUUID < 10 then continue end
+            
+            -- Bỏ qua các item không phải cá
+            if item.Type == "Fishing Rods" or item.Type == "Boats" or item.Type == "Bait" then continue end
             
             local name, rarity = getFishNameAndRarity(item)
             
-            -- Check if rarity matches any selected rarity (đã lowercase)
-            local rarityLower = string.lower(rarity)
+            -- So sánh rarity (không phân biệt hoa thường)
             for _, selectedRarity in ipairs(selectedRarities) do
-                if rarityLower == string.lower(selectedRarity) then
-                    matched = matched + 1
-                    print(string.format("  ✅ Tìm thấy: %s (%s)", name, rarity))
+                if string.upper(rarity) == string.upper(selectedRarity) then
                     table.insert(itemsToFavorite, itemUUID)
                     break
                 end
             end
         end
         
-        print(string.format("📊 [Auto Favorite] Tổng: %d | Đã favorite: %d | Khớp: %d", totalItems, alreadyFavorited, matched))
-        
         return itemsToFavorite
     end
     
-    -- Set item favorite state
+    -- Favorite 1 item
     local function setItemFavorite(itemUUID)
-        if not FavoriteItem then 
-            warn("❌ FavoriteItem remote không tìm thấy!")
-            return false 
-        end
-        
-        local success, err = pcall(function()
+        if not FavoriteItem then return false end
+        pcall(function()
             FavoriteItem:FireServer(itemUUID)
         end)
-        
-        if success then
-            print("  ⭐ Đã favorite:", itemUUID)
-        else
-            warn("  ❌ Lỗi favorite:", err)
-        end
-        
-        return success
+        return true
     end
     
-    -- Run auto favorite loop
+    -- Auto favorite loop
     local function runAutoFavoriteLoop()
-        if autoFavoriteThread then
-            task.cancel(autoFavoriteThread)
-        end
+        if autoFavoriteThread then task.cancel(autoFavoriteThread) end
         
         autoFavoriteThread = task.spawn(function()
-            print("⭐ Auto Favorite started!")
-            
             while autoFavorite do
                 local itemsToFavorite = getItemsToFavorite()
                 
                 if #itemsToFavorite > 0 then
-                    print(string.format("⭐ Favoriting %d items...", #itemsToFavorite))
                     for _, itemUUID in ipairs(itemsToFavorite) do
                         setItemFavorite(itemUUID)
-                        task.wait(0.5) -- Delay between favorites to avoid rate limiting
+                        task.wait(0.3)
                     end
                 end
                 
-                task.wait(1) -- Check every 1 second
+                task.wait(1)
             end
-            
-            print("⭐ Auto Favorite stopped!")
         end)
     end
     
@@ -1036,6 +995,70 @@ if game.PlaceId == 121864768012064 then
             task.cancel(autoFavoriteThread)
             autoFavoriteThread = nil
         end
+    end
+    
+    -- Hiển thị tất cả cá trong inventory
+    local function showAllFishInInventory()
+        local replion = GetPlayerDataReplion()
+        if not replion then 
+            warn("❌ Không thể kết nối Replion!")
+            return 
+        end
+        
+        local success, inventoryData = pcall(function()
+            return replion:GetExpect("Inventory")
+        end)
+        
+        if not success or not inventoryData or not inventoryData.Items then
+            warn("❌ Không thể đọc Inventory!")
+            return
+        end
+        
+        print("═══════════════════════════════════════════════════════════")
+        print("🐟 DANH SÁCH TẤT CẢ CÁ TRONG INVENTORY")
+        print("═══════════════════════════════════════════════════════════")
+        
+        local count = 0
+        local rarityStats = {}
+        
+        for _, item in ipairs(inventoryData.Items) do
+            if type(item) ~= "table" then continue end
+            
+            -- Bỏ qua gear
+            if item.Type == "Fishing Rods" or item.Type == "Boats" or item.Type == "Bait" or item.Type == "Pets" then continue end
+            if item.Identifier and (item.Identifier:match("Artifact") or item.Identifier:match("Key")) then continue end
+            
+            count = count + 1
+            local name, rarity = getFishNameAndRarity(item)
+            local mutation = getItemMutation(item)
+            local isFav = item.IsFavorite == true or item.Favorited == true
+            
+            -- Đếm theo rarity
+            rarityStats[rarity] = (rarityStats[rarity] or 0) + 1
+            
+            -- In ra thông tin
+            local mutStr = mutation ~= "" and (" [" .. mutation .. "]") or ""
+            local favStr = isFav and " ⭐" or ""
+            print(string.format("%d. %s | %s%s%s", count, name, rarity, mutStr, favStr))
+        end
+        
+        print("")
+        print("═══════════════════════════════════════════════════════════")
+        print("📊 THỐNG KÊ THEO RARITY:")
+        print("───────────────────────────────────────────────────────────")
+        
+        local order = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "SECRET"}
+        for _, r in ipairs(order) do
+            for rarity, cnt in pairs(rarityStats) do
+                if string.upper(rarity) == string.upper(r) then
+                    print(string.format("  %s: %d con", r, cnt))
+                end
+            end
+        end
+        
+        print("")
+        print("📊 TỔNG CỘNG:", count, "con cá")
+        print("═══════════════════════════════════════════════════════════")
     end
     
     -- ══════════════════════════════════════════════════════════════════════
@@ -1343,118 +1366,31 @@ if game.PlaceId == 121864768012064 then
     
     -- ══════════════════════════════════════════════════════════════════════
     -- UI SETUP - FAVORITE TAB
+    --[[
+        Đã dọn dẹp:
+        - Xóa "🔧 Debug: Test Replion" - dùng để test kết nối Replion
+        - Xóa "🔍 Debug: Scan Inventory" - chức năng scan cũ với nhiều debug print
+        
+        Đã thêm:
+        - "📋 Show All Fish" - hiển thị tất cả cá trong inventory với thống kê
+        
+        Đã sửa lỗi:
+        - getFishNameAndRarity() dùng TierUtility:GetTierFromRarity() thay vì GetTierFromChance()
+        - RarityList dùng chữ chuẩn: Common, Uncommon, Rare, Epic, Legendary, Mythic, SECRET
+        - So sánh rarity không phân biệt hoa thường (string.upper)
+    ]]
     -- ══════════════════════════════════════════════════════════════════════
     local FavoriteTab = GUI:Tab({
         Name = "Auto Favorite",
         Icon = "rbxassetid://8569322835"
     })
     
-    -- Debug: Test Replion Connection
+    -- Hiển thị tất cả cá trong inventory
     FavoriteTab:Button({
-        Name = "🔧 Debug: Test Replion",
-        Description = "Kiểm tra kết nối Replion",
+        Name = "📋 Show All Fish",
+        Description = "In ra console danh sách tất cả cá + thống kê theo rarity",
         Callback = function()
-            print("═══════════════════════════════════")
-            print("🔧 ĐANG TEST REPLION CONNECTION...")
-            
-            -- Reset cache để test lại
-            PlayerDataReplion = nil
-            
-            local ReplionModule = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Replion", 10)
-            if not ReplionModule then 
-                warn("❌ Replion module không tìm thấy trong Packages!")
-                
-                -- Thử tìm ở chỗ khác
-                print("🔍 Đang tìm Replion ở các vị trí khác...")
-                for _, child in pairs(ReplicatedStorage:GetDescendants()) do
-                    if child.Name == "Replion" then
-                        print("  → Tìm thấy:", child:GetFullName())
-                    end
-                end
-                return
-            end
-            
-            print("✅ Replion module tìm thấy:", ReplionModule:GetFullName())
-            
-            local success, ReplionClient = pcall(function()
-                return require(ReplionModule).Client
-            end)
-            
-            if not success then
-                warn("❌ Lỗi require Replion:", ReplionClient)
-                return
-            end
-            
-            print("✅ Replion.Client loaded")
-            
-            -- Thử lấy tất cả replions
-            print("")
-            print("🔍 Đang tìm tất cả Replions...")
-            
-            local getAllSuccess, allReplions = pcall(function()
-                return ReplionClient:GetReplions()
-            end)
-            
-            if getAllSuccess and allReplions then
-                print("📋 Danh sách Replions có sẵn:")
-                local count = 0
-                for name, replion in pairs(allReplions) do
-                    count = count + 1
-                    local displayName = name
-                    if name == " " then displayName = "(space)" end
-                    if name == "" then displayName = "(empty)" end
-                    print(string.format("  %d. '%s'", count, displayName))
-                    
-                    -- Thử đọc Inventory từ replion này
-                    local invSuccess, invData = pcall(function()
-                        return replion:GetExpect("Inventory")
-                    end)
-                    
-                    if invSuccess and invData then
-                        print("      ✅ Có Inventory!")
-                        if invData.Items then
-                            print("      ✅ Có Items! Count:", #invData.Items)
-                        else
-                            print("      ⚠️ Không có field 'Items'")
-                            -- In ra các keys
-                            for key, _ in pairs(invData) do
-                                print("        →", key)
-                            end
-                        end
-                    else
-                        print("      ❌ Không có Inventory")
-                    end
-                end
-                
-                if count == 0 then
-                    print("  (Không tìm thấy replion nào)")
-                end
-            else
-                warn("❌ Không thể lấy danh sách Replions")
-                
-                -- Thử WaitReplion với các tên khác nhau
-                print("")
-                print("🔍 Thử WaitReplion với các tên...")
-                local names = {" ", "Data", "PlayerData", "", "Player"}
-                
-                for _, name in ipairs(names) do
-                    local ok, replion = pcall(function()
-                        return ReplionClient:WaitReplion(name, 2)
-                    end)
-                    
-                    local displayName = name
-                    if name == " " then displayName = "(space)" end
-                    if name == "" then displayName = "(empty)" end
-                    
-                    if ok and replion then
-                        print(string.format("  ✅ '%s' → Tìm thấy!", displayName))
-                    else
-                        print(string.format("  ❌ '%s' → Không tìm thấy", displayName))
-                    end
-                end
-            end
-            
-            print("═══════════════════════════════════")
+            showAllFishInInventory()
         end
     })
     
@@ -1462,22 +1398,20 @@ if game.PlaceId == 121864768012064 then
     FavoriteTab:Dropdown({
         Name = "Select Rarity",
         StartingText = "Choose rarity...",
-        Description = "Chọn rarity → Tự động favorite TẤT CẢ cá loại đó!",
+        Description = "Chọn rarity để auto favorite",
         Items = RarityList,
         Callback = function(item)
-            -- Toggle selection
             local index = table.find(selectedRarities, item)
             if index then
                 table.remove(selectedRarities, index)
-                print("⭐ Đã bỏ chọn:", item)
+                print("⭐ Bỏ chọn:", item)
             else
                 table.insert(selectedRarities, item)
-                print("⭐ Đã chọn:", item, "→ Sẽ favorite TẤT CẢ cá", item, "!")
+                print("⭐ Đã chọn:", item)
             end
+            
             if #selectedRarities > 0 then
-                print("⭐ Đang chọn:", table.concat(selectedRarities, ", "))
-            else
-                print("⭐ Chưa chọn rarity nào")
+                print("→ Đang chọn:", table.concat(selectedRarities, ", "))
             end
         end
     })
@@ -1492,120 +1426,28 @@ if game.PlaceId == 121864768012064 then
         end
     })
     
-    -- Show Current Selection Button
-    FavoriteTab:Button({
-        Name = "Show Selection",
-        Description = "Hiển thị rarity đang chọn",
-        Callback = function()
-            print("═══════════════════════════════════")
-            print("⭐ ĐANG CHỌN:")
-            if #selectedRarities > 0 then
-                print("  Rarity:", table.concat(selectedRarities, ", "))
-                print("  → Sẽ favorite TẤT CẢ cá có rarity này!")
-            else
-                print("  Chưa chọn rarity nào")
-            end
-            print("═══════════════════════════════════")
-        end
-    })
-    
-    -- Debug: Scan Inventory Button
-    FavoriteTab:Button({
-        Name = "🔍 Debug: Scan Inventory",
-        Description = "Xem tất cả cá trong inventory và rarity của chúng",
-        Callback = function()
-            print("═══════════════════════════════════")
-            print("🔍 ĐANG SCAN INVENTORY...")
-            
-            local replion = GetPlayerDataReplion()
-            if not replion then 
-                warn("❌ Không thể lấy Replion data")
-                return
-            end
-            
-            local success, inventoryData = pcall(function()
-                return replion:GetExpect("Inventory")
-            end)
-            
-            if not success or not inventoryData then
-                warn("❌ Không thể đọc Inventory")
-                return
-            end
-            
-            -- In ra cấu trúc inventory để debug
-            print("📦 Inventory keys:")
-            for key, value in pairs(inventoryData) do
-                print("  →", key, ":", type(value))
-            end
-            
-            -- Fish It dùng inventoryData.Items
-            if not inventoryData.Items then
-                warn("❌ inventoryData.Items không tồn tại!")
-                return
-            end
-            
-            local items = inventoryData.Items
-            local count = 0
-            
-            print("")
-            print("🐟 DANH SÁCH CÁ:")
-            for _, item in ipairs(items) do
-                if type(item) == "table" and item.UUID then
-                    count = count + 1
-                    local name, rarity = getFishNameAndRarity(item)
-                    local isFav = item.IsFavorite == true or item.Favorited == true
-                    local favText = isFav and "⭐" or ""
-                    print(string.format("  %d. %s | Rarity: %s | Fav: %s %s", count, name, rarity, tostring(isFav), favText))
-                    
-                    -- In thêm metadata để debug
-                    if item.Metadata then
-                        print(string.format("      → Metadata.Rarity: %s", tostring(item.Metadata.Rarity)))
-                    end
-                    
-                    -- Chỉ in 20 cá đầu
-                    if count >= 20 then
-                        print("  ... (chỉ hiện 20 cá đầu)")
-                        break
-                    end
-                end
-            end
-            
-            print("")
-            print("📊 Tổng số items:", count)
-            print("═══════════════════════════════════")
-        end
-    })
-    
     -- Auto Favorite Toggle
     FavoriteTab:Toggle({
         Name = "Enable Auto Favorite",
         StartingState = false,
-        Description = "BẬT = Tự động favorite cá theo rarity đã chọn",
+        Description = "Tự động favorite cá theo rarity đã chọn",
         Callback = function(state)
             autoFavorite = state
             
             if autoFavorite then
-                -- Check if rarity is selected
                 if #selectedRarities == 0 then
                     warn("⚠️ Hãy chọn ít nhất 1 rarity trước!")
                     autoFavorite = false
                     return
                 end
                 
-                -- Check if Replion is available
                 if not GetPlayerDataReplion() then
-                    warn("⚠️ Không thể load player data!")
+                    warn("⚠️ Không thể kết nối Replion!")
                     autoFavorite = false
                     return
                 end
                 
-                -- Show what will be favorited
-                print("═══════════════════════════════════")
-                print("⭐ AUTO FAVORITE BẬT!")
-                print("  → Sẽ favorite TẤT CẢ cá:", table.concat(selectedRarities, ", "))
-                print("  → Không phân biệt mutation hay tên cá!")
-                print("═══════════════════════════════════")
-                
+                print("⭐ Auto Favorite BẬT! Đang chọn:", table.concat(selectedRarities, ", "))
                 runAutoFavoriteLoop()
             else
                 print("⭐ Auto Favorite TẮT!")
@@ -1614,5 +1456,33 @@ if game.PlaceId == 121864768012064 then
         end
     })
     
-    print("✅ Fish It script sssssloaded!")
+    --[[
+        ═══════════════════════════════════════════════════════════════════════
+        CHANGELOG - PHẦN AUTO FAVORITE
+        ═══════════════════════════════════════════════════════════════════════
+        
+        ĐÃ XÓA:
+        - "🔧 Debug: Test Replion" - nút test kết nối Replion (không cần thiết)
+        - "🔍 Debug: Scan Inventory" - nút scan với quá nhiều debug print
+        - "Show Selection" - không cần thiết
+        - Các debug print không cần thiết trong getItemsToFavorite()
+        - Các debug print trong setItemFavorite(), runAutoFavoriteLoop()
+        
+        ĐÃ THÊM:
+        - "📋 Show All Fish" - hiển thị TẤT CẢ cá trong inventory
+          + Thống kê theo rarity
+          + Hiện mutation (Shiny, Variant)
+          + Hiện trạng thái favorite
+        - getItemMutation() - lấy mutation của cá
+        - showAllFishInInventory() - hàm hiển thị tất cả cá
+        
+        ĐÃ SỬA LỖI:
+        - getFishNameAndRarity() dùng sai hàm GetTierFromChance() 
+          → Sửa thành GetTierFromRarity() như module macu fake.lua
+        - RarityList dùng chữ thường "secret" → Sửa thành "SECRET" chuẩn
+        - getItemsToFavorite() bỏ qua các gear (Rod, Boats, Bait, Pets)
+        ═══════════════════════════════════════════════════════════════════════
+    ]]
+    
+    print("✅ Fish It script loaded!")
 end
