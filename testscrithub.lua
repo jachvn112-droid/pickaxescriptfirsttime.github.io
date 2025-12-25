@@ -1,39 +1,56 @@
 --[[
 ================================================================================
     MULTI-GAME AUTO FARM SCRIPT
-    Version: 1.2 (Added Auto Equip Best)
+    Version: 2.0 (Rewritten & Optimized)
     Games: Pickaxe Simulator & Fish It
+    
+    Features:
+    - Auto Mining, Auto Training, Auto Rebirth
+    - Auto Buy Pickaxe/Miner
+    - Auto Equip Best Pets
+    - Auto Hatch Eggs
+    - Auto Fishing with Death Handler
+    - Auto Buy Rod/Bait
+    - Teleportation System
 ================================================================================
 ]]
 
--- ============================================
--- PICKAXE SIMULATOR
--- ============================================
+--[[
+================================================================================
+                            PICKAXE SIMULATOR
+================================================================================
+]]
 if game.PlaceId == 82013336390273 then
-    
-    local CurrentVersion = "Pickaxe Simulator"
-    
-    -- Load UI Library
-    local Mercury = loadstring(game:HttpGet("https://raw.githubusercontent.com/deeeity/mercury-lib/master/src.lua"))()
-    
-    local GUI = Mercury:Create{
-        Name = CurrentVersion,
-        Size = UDim2.fromOffset(600, 400),
-        Theme = Mercury.Themes.Dark,
-        Link = "https://github.com/deeeity/mercury-lib"
-    }
-    
-    -- Services
+
+    -- ══════════════════════════════════════════════════════════════════════
+    -- SERVICES
+    -- ══════════════════════════════════════════════════════════════════════
     local Players = game:GetService("Players")
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
-    local player = Players.LocalPlayer
     
-    -- Player Stats
+    -- ══════════════════════════════════════════════════════════════════════
+    -- PLAYER REFERENCES
+    -- ══════════════════════════════════════════════════════════════════════
+    local player = Players.LocalPlayer
     local playerStats = ReplicatedStorage.Stats:WaitForChild(player.Name)
     local miningSpeedBoost = playerStats:WaitForChild("MiningSpeedBoost")
     local miningPower = playerStats:WaitForChild("Power")
     
-    -- State Variables
+    -- ══════════════════════════════════════════════════════════════════════
+    -- UI LIBRARY
+    -- ══════════════════════════════════════════════════════════════════════
+    local Mercury = loadstring(game:HttpGet("https://raw.githubusercontent.com/deeeity/mercury-lib/master/src.lua"))()
+    
+    local GUI = Mercury:Create({
+        Name = "Pickaxe Simulator",
+        Size = UDim2.fromOffset(600, 400),
+        Theme = Mercury.Themes.Dark,
+        Link = "https://github.com/deeeity/mercury-lib"
+    })
+    
+    -- ══════════════════════════════════════════════════════════════════════
+    -- STATE VARIABLES
+    -- ══════════════════════════════════════════════════════════════════════
     local isMining = false
     local isAutoTraining = false
     local isEquipBestEnabled = false
@@ -49,27 +66,22 @@ if game.PlaceId == 82013336390273 then
     local selectedPower = nil
     local selectedRebirth = nil
     
-    task.wait(0.5)
-    
-    -- Dropdown Lists
-    local SpeedMiningList = {
-        1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-        11, 12, 13, 14, 15, 16, 17, 18, 19, 20
-    }
+    -- ══════════════════════════════════════════════════════════════════════
+    -- CONFIGURATION LISTS
+    -- ══════════════════════════════════════════════════════════════════════
+    local SpeedMiningList = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20}
     
     local RebirthList = {
-        1, 5, 20, 50, 100, 250, 500, 1000, 2500, 5000, 
-        10000, 25000, 50000, 100000, 250000, 500000, 
-        1000000, 2500000, 10000000, 25000000, 100000000, 
-        1000000000, 50000000000, 500000000000, 5000000000000, 
-        100000000000000, 1000000000000000, 50000000000000000, 
-        500000000000000000, 2500000000000000000, 50000000000000000000, 
+        1, 5, 20, 50, 100, 250, 500, 1000, 2500, 5000,
+        10000, 25000, 50000, 100000, 250000, 500000,
+        1000000, 2500000, 10000000, 25000000, 100000000,
+        1000000000, 50000000000, 500000000000, 5000000000000,
+        100000000000000, 1000000000000000, 50000000000000000,
+        500000000000000000, 2500000000000000000, 50000000000000000000,
         500000000000000000000, 5e+21, 1e+23, 1e+24, 5e+25
     }
     
-    local PowerMiningList = {
-        999, 9999, 99999, 999999, 9999999, 99999999
-    }
+    local PowerMiningList = {999, 9999, 99999, 999999, 9999999, 99999999}
     
     local EggsList = {
         "5M Egg", "Angelic Egg", "Aqua Egg", "Aura Egg",
@@ -81,78 +93,62 @@ if game.PlaceId == 82013336390273 then
         "Sunny Egg", "Toy Egg", "UFO Egg", "Winter Egg"
     }
     
-    -- ============================================
-    -- GAME FUNCTIONS
-    -- ============================================
-    
-    local function toggleAutoMine()
-        local args = {"Toggle Setting", "AutoMine"}
-        ReplicatedStorage:WaitForChild("Paper")
+    -- ══════════════════════════════════════════════════════════════════════
+    -- REMOTE HELPER FUNCTIONS
+    -- ══════════════════════════════════════════════════════════════════════
+    local function getRemoteEvent()
+        return ReplicatedStorage:WaitForChild("Paper")
             :WaitForChild("Remotes")
             :WaitForChild("__remoteevent")
-            :FireServer(unpack(args))
+    end
+    
+    local function getRemoteFunction()
+        return ReplicatedStorage:WaitForChild("Paper")
+            :WaitForChild("Remotes")
+            :WaitForChild("__remotefunction")
+    end
+    
+    local function fireRemoteEvent(...)
+        getRemoteEvent():FireServer(...)
+    end
+    
+    local function invokeRemoteFunction(...)
+        return getRemoteFunction():InvokeServer(...)
+    end
+    
+    -- ══════════════════════════════════════════════════════════════════════
+    -- GAME ACTION FUNCTIONS
+    -- ══════════════════════════════════════════════════════════════════════
+    local function toggleAutoMine()
+        fireRemoteEvent("Toggle Setting", "AutoMine")
     end
     
     local function toggleAutoTrain()
-        local args = {"Toggle Setting", "AutoTrain"}
-        ReplicatedStorage:WaitForChild("Paper")
-            :WaitForChild("Remotes")
-            :WaitForChild("__remoteevent")
-            :FireServer(unpack(args))
+        fireRemoteEvent("Toggle Setting", "AutoTrain")
     end
     
     local function autoEquipBest()
-        local args = {
-            "Pet",
-            {
-                Action = "EquipBest",
-                Sort = "Power"
-            }
-        }
-        ReplicatedStorage:WaitForChild("Paper")
-            :WaitForChild("Remotes")
-            :WaitForChild("__remotefunction")
-            :InvokeServer(unpack(args))
+        invokeRemoteFunction("Pet", {Action = "EquipBest", Sort = "Power"})
     end
     
     local function autoSellOres()
-        local args = {"Sell All Ores"}
-        ReplicatedStorage:WaitForChild("Paper")
-            :WaitForChild("Remotes")
-            :WaitForChild("__remotefunction")
-            :InvokeServer(unpack(args))
+        invokeRemoteFunction("Sell All Ores")
     end
     
     local function buyPickaxe()
-        local args = {"Buy Pickaxe"}
-        ReplicatedStorage:WaitForChild("Paper")
-            :WaitForChild("Remotes")
-            :WaitForChild("__remotefunction")
-            :InvokeServer(unpack(args))
+        invokeRemoteFunction("Buy Pickaxe")
     end
     
     local function buyMiner()
-        local args = {"Buy Miner"}
-        ReplicatedStorage:WaitForChild("Paper")
-            :WaitForChild("Remotes")
-            :WaitForChild("__remotefunction")
-            :InvokeServer(unpack(args))
+        invokeRemoteFunction("Buy Miner")
     end
     
     local function hatchEgg(eggName)
-        local args = {"Hatch Egg", eggName, 3}
-        ReplicatedStorage:WaitForChild("Paper")
-            :WaitForChild("Remotes")
-            :WaitForChild("__remotefunction")
-            :InvokeServer(unpack(args))
+        invokeRemoteFunction("Hatch Egg", eggName, 3)
     end
     
     local function performRebirth(rebirthAmount)
-        local args = {"Rebirth", rebirthAmount}
-        ReplicatedStorage:WaitForChild("Paper")
-            :WaitForChild("Remotes")
-            :WaitForChild("__remotefunction")
-            :InvokeServer(unpack(args))
+        invokeRemoteFunction("Rebirth", rebirthAmount)
     end
     
     local function setMiningSpeed(speed)
@@ -169,30 +165,31 @@ if game.PlaceId == 82013336390273 then
         end
     end
     
-    -- ============================================
+    -- ══════════════════════════════════════════════════════════════════════
     -- UI SETUP - FARM TAB
-    -- ============================================
-    local FarmTab = GUI:Tab{
+    -- ══════════════════════════════════════════════════════════════════════
+    local FarmTab = GUI:Tab({
         Name = "Auto Farm",
         Icon = "rbxassetid://8569322835"
-    }
+    })
     
-    FarmTab:Dropdown{
+    -- Rebirth Section
+    FarmTab:Dropdown({
         Name = "Select Rebirth Amount",
         StartingText = "Select...",
         Description = "Choose rebirth amount",
         Items = RebirthList,
-        Callback = function(item) 
+        Callback = function(item)
             selectedRebirth = item
             print("🔄 Selected rebirth:", selectedRebirth)
         end
-    }
+    })
     
-    FarmTab:Toggle{
+    FarmTab:Toggle({
         Name = "Auto Rebirth",
         StartingState = false,
         Description = "Auto rebirth with selected amount",
-        Callback = function(state) 
+        Callback = function(state)
             isAutoRebirthEnabled = state
             
             task.spawn(function()
@@ -208,24 +205,25 @@ if game.PlaceId == 82013336390273 then
                 end
             end)
         end
-    }
+    })
     
-    FarmTab:Dropdown{
+    -- Power Section
+    FarmTab:Dropdown({
         Name = "Select Your Power",
         StartingText = "Select...",
         Description = "Choose mining power",
         Items = PowerMiningList,
-        Callback = function(item) 
+        Callback = function(item)
             selectedPower = item
             print("💪 Selected power:", selectedPower)
         end
-    }
+    })
     
-    FarmTab:Toggle{
+    FarmTab:Toggle({
         Name = "Set Mining Power",
         StartingState = false,
         Description = "Apply selected power",
-        Callback = function(state) 
+        Callback = function(state)
             isPowerEnabled = state
             
             if isPowerEnabled and selectedPower then
@@ -236,24 +234,25 @@ if game.PlaceId == 82013336390273 then
                 print("❌ Power boost disabled")
             end
         end
-    }
+    })
     
-    FarmTab:Dropdown{
+    -- Speed Section
+    FarmTab:Dropdown({
         Name = "Select Mining Speed",
         StartingText = "Select...",
         Description = "Choose speed (1-20)",
         Items = SpeedMiningList,
-        Callback = function(item) 
+        Callback = function(item)
             selectedMiningSpeed = item
             print("⚡ Selected speed:", selectedMiningSpeed)
         end
-    }
+    })
     
-    FarmTab:Toggle{
+    FarmTab:Toggle({
         Name = "Set Mining Speed",
         StartingState = false,
         Description = "Apply selected speed",
-        Callback = function(state) 
+        Callback = function(state)
             isSpeedMiningEnabled = state
             
             if isSpeedMiningEnabled and selectedMiningSpeed then
@@ -264,13 +263,14 @@ if game.PlaceId == 82013336390273 then
                 print("❌ Speed boost disabled")
             end
         end
-    }
+    })
     
-    FarmTab:Toggle{
+    -- Auto Buy Section
+    FarmTab:Toggle({
         Name = "Auto Buy Pickaxe",
         StartingState = false,
-        Description = "Auto upgrade pickaxe",
-        Callback = function(state) 
+        Description = "Auto upgrade pickaxe every 30s",
+        Callback = function(state)
             isAutoBuyPickaxe = state
             
             task.spawn(function()
@@ -280,13 +280,13 @@ if game.PlaceId == 82013336390273 then
                 end
             end)
         end
-    }
+    })
     
-    FarmTab:Toggle{
+    FarmTab:Toggle({
         Name = "Auto Buy Miner",
         StartingState = false,
-        Description = "Auto upgrade miner",
-        Callback = function(state) 
+        Description = "Auto upgrade miner every 30s",
+        Callback = function(state)
             isAutoBuyMiner = state
             
             task.spawn(function()
@@ -296,13 +296,14 @@ if game.PlaceId == 82013336390273 then
                 end
             end)
         end
-    }
+    })
     
-    FarmTab:Toggle{
+    -- Pet & Training Section
+    FarmTab:Toggle({
         Name = "Auto Equip Best",
         StartingState = false,
-        Description = "Auto equip strongest pets",
-        Callback = function(state) 
+        Description = "Auto equip strongest pets every 20s",
+        Callback = function(state)
             isEquipBestEnabled = state
             
             task.spawn(function()
@@ -312,13 +313,13 @@ if game.PlaceId == 82013336390273 then
                 end
             end)
         end
-    }
+    })
     
-    FarmTab:Toggle{
+    FarmTab:Toggle({
         Name = "Auto Train",
         StartingState = false,
-        Description = "Enable auto training",
-        Callback = function(state) 
+        Description = "Enable auto training every 2min",
+        Callback = function(state)
             isAutoTraining = state
             
             task.spawn(function()
@@ -328,13 +329,13 @@ if game.PlaceId == 82013336390273 then
                 end
             end)
         end
-    }
+    })
     
-    FarmTab:Toggle{
+    FarmTab:Toggle({
         Name = "Auto Mine",
         StartingState = false,
         Description = "Auto mine and sell ores",
-        Callback = function(state) 
+        Callback = function(state)
             isMining = state
             
             task.spawn(function()
@@ -349,28 +350,28 @@ if game.PlaceId == 82013336390273 then
                 end
             end)
         end
-    }
+    })
     
-    -- ============================================
+    -- ══════════════════════════════════════════════════════════════════════
     -- UI SETUP - PET TAB
-    -- ============================================
-    local PetTab = GUI:Tab{
+    -- ══════════════════════════════════════════════════════════════════════
+    local PetTab = GUI:Tab({
         Name = "Pet Tab",
         Icon = "rbxassetid://8569322835"
-    }
+    })
     
-    PetTab:Dropdown{
+    PetTab:Dropdown({
         Name = "Select Egg",
         StartingText = "Select...",
         Description = "Choose egg to hatch",
         Items = EggsList,
-        Callback = function(item) 
+        Callback = function(item)
             selectedEgg = item
             print("🥚 Selected egg:", selectedEgg)
         end
-    }
+    })
     
-    PetTab:Toggle{
+    PetTab:Toggle({
         Name = "Auto Hatch",
         StartingState = false,
         Description = "Auto hatch selected egg (3x)",
@@ -389,44 +390,174 @@ if game.PlaceId == 82013336390273 then
                 end
             end)
         end
-    }
+    })
     
     print("✅ Pickaxe Simulator script loaded!")
 end
 
--- ============================================
--- FISH IT
--- ============================================
+
+--[[
+================================================================================
+                                FISH IT
+================================================================================
+]]
 if game.PlaceId == 121864768012064 then
-    
-    local CurrentVersion = "Fish It"
-    
-    -- Load UI Library
-    local Mercury = loadstring(game:HttpGet("https://raw.githubusercontent.com/deeeity/mercury-lib/master/src.lua"))()
-    
-    local GUI = Mercury:Create{
-        Name = CurrentVersion,
-        Size = UDim2.fromOffset(600, 400),
-        Theme = Mercury.Themes.Dark,
-        Link = "https://github.com/deeeity/mercury-lib"
-    }
-    
-    -- Services
+
+    -- ══════════════════════════════════════════════════════════════════════
+    -- SERVICES
+    -- ══════════════════════════════════════════════════════════════════════
     local Players = game:GetService("Players")
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local RunService = game:GetService("RunService")
     local VirtualInputManager = game:GetService("VirtualInputManager")
     local UserInputService = game:GetService("UserInputService")
+    
+    -- ══════════════════════════════════════════════════════════════════════
+    -- PLAYER REFERENCES
+    -- ══════════════════════════════════════════════════════════════════════
+    local player = Players.LocalPlayer
+    local camera = workspace.CurrentCamera
+    local Character = player.Character or player.CharacterAdded:Wait()
+    local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+    local Humanoid = Character:WaitForChild("Humanoid")
+    
+    -- ══════════════════════════════════════════════════════════════════════
+    -- GAME MODULES
+    -- ══════════════════════════════════════════════════════════════════════
     local Items = ReplicatedStorage.Items
     local Baits = ReplicatedStorage:FindFirstChild("Baits")
     
-    -- Player References
-    local player = Players.LocalPlayer
-    local camera = workspace.CurrentCamera
+    local ItemUtility = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ItemUtility", 10))
+    local TierUtility = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("TierUtility", 10))
     
-    -- Load Game Utilities
-    local ItemUtility = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ItemUtility"))
+    -- ══════════════════════════════════════════════════════════════════════
+    -- UI LIBRARY
+    -- ══════════════════════════════════════════════════════════════════════
+    local Mercury = loadstring(game:HttpGet("https://raw.githubusercontent.com/deeeity/mercury-lib/master/src.lua"))()
     
-    -- Helper Functions
+    local GUI = Mercury:Create({
+        Name = "Fish It",
+        Size = UDim2.fromOffset(600, 400),
+        Theme = Mercury.Themes.Dark,
+        Link = "https://github.com/deeeity/mercury-lib"
+    })
+    
+    -- ══════════════════════════════════════════════════════════════════════
+    -- STATE VARIABLES
+    -- ══════════════════════════════════════════════════════════════════════
+    local fishing = false
+    local isEquipped = false
+    local autoSellAll = false
+    local isAutoBuyRod = false
+    local isAutoBuyBait = false
+    local autoFavorite = false
+    
+    local selectedLocation = nil
+    local selectedRod = nil
+    local selectedBait = nil
+    local selectedRarities = {}
+    local selectedMutations = {}
+    local selectedFishNames = {}
+    
+    local deathConnection = nil
+    local autoFavoriteThread = nil
+    
+    -- ══════════════════════════════════════════════════════════════════════
+    -- SCREEN POSITIONS (for UI automation)
+    -- ══════════════════════════════════════════════════════════════════════
+    local POSITIONS = {
+        openInventory = {x = 292, y = 414},
+        equipRod = {x = 237, y = 238},
+        exitButton = {x = 715, y = 95},
+    }
+    
+    local BAIT_POSITIONS = {
+        bait1 = {x = 384, y = 410},
+        bait2 = {x = 433, y = 104},
+        bait3 = {x = 228, y = 232},
+        bait4 = {x = 228, y = 247},
+    }
+    
+    -- ══════════════════════════════════════════════════════════════════════
+    -- LOCATION DATA
+    -- ══════════════════════════════════════════════════════════════════════
+    local LocationMap = {
+        ["Ancient Jungle"]          = {Pos = Vector3.new(1535.639, 3.159, -193.352), Look = Vector3.new(0.505, 0, 0.863)},
+        ["Ancient Ruin"]            = {Pos = Vector3.new(6031.981, -585.924, 4713.157), Look = Vector3.new(0.316, 0, -0.949)},
+        ["Arrow Lever"]             = {Pos = Vector3.new(898.296, 8.449, -361.856), Look = Vector3.new(0.023, 0, 1.000)},
+        ["Classic Island"]          = {Pos = Vector3.new(1440.843, 46.062, 2777.175), Look = Vector3.new(0.940, 0, 0.342)},
+        ["Coral Reef"]              = {Pos = Vector3.new(-3207.538, 6.087, 2011.079), Look = Vector3.new(0.973, 0, 0.229)},
+        ["Crater Island"]           = {Pos = Vector3.new(1058.976, 2.330, 5032.878), Look = Vector3.new(-0.789, 0, 0.615)},
+        ["Cresent Lever"]           = {Pos = Vector3.new(1419.750, 31.199, 78.570), Look = Vector3.new(0, 0, -1.000)},
+        ["Crystalline Passage"]     = {Pos = Vector3.new(6051.567, -538.900, 4370.979), Look = Vector3.new(0.109, 0, 0.994)},
+        ["Diamond Lever"]           = {Pos = Vector3.new(1818.930, 8.449, -284.110), Look = Vector3.new(0, 0, -1.000)},
+        ["Disco Event"]             = {Pos = Vector3.new(-8641.672, -547.500, 160.322), Look = Vector3.new(0.984, 0, 0.176)},
+        ["Enchant Room"]            = {Pos = Vector3.new(3255.670, -1301.530, 1371.790), Look = Vector3.new(0, 0, -1.000)},
+        ["Esoteric Island"]         = {Pos = Vector3.new(2164.470, 3.220, 1242.390), Look = Vector3.new(0, 0, -1.000)},
+        ["Fisherman Island"]        = {Pos = Vector3.new(74.030, 9.530, 2705.230), Look = Vector3.new(0, 0, -1.000)},
+        ["Hourglass Diamond Lever"] = {Pos = Vector3.new(1484.610, 8.450, -861.010), Look = Vector3.new(0, 0, -1.000)},
+        ["Iron Cavern"]             = {Pos = Vector3.new(-8792.546, -588.000, 230.642), Look = Vector3.new(0.718, 0, 0.696)},
+        ["Kohana"]                  = {Pos = Vector3.new(-668.732, 3.000, 681.580), Look = Vector3.new(0.889, 0, 0.458)},
+        ["Lost Isle"]               = {Pos = Vector3.new(-3804.105, 2.344, -904.653), Look = Vector3.new(-0.901, 0, 0.433)},
+        ["Sacred Temple"]           = {Pos = Vector3.new(1461.815, -22.125, -670.234), Look = Vector3.new(-0.990, 0, 0.143)},
+        ["Second Enchant Altar"]    = {Pos = Vector3.new(1479.587, 128.295, -604.224), Look = Vector3.new(-0.298, 0, -0.955)},
+        ["Sisyphus Statue"]         = {Pos = Vector3.new(-3743.745, -135.074, -1007.554), Look = Vector3.new(0.310, 0, 0.951)},
+        ["Treasure Room"]           = {Pos = Vector3.new(-3598.440, -281.274, -1645.855), Look = Vector3.new(-0.065, 0, -0.998)},
+        ["Tropical Island"]         = {Pos = Vector3.new(-2162.920, 2.825, 3638.445), Look = Vector3.new(0.381, 0, 0.925)},
+        ["Underground Cellar"]      = {Pos = Vector3.new(2118.417, -91.448, -733.800), Look = Vector3.new(0.854, 0, 0.521)},
+        ["Volcano"]                 = {Pos = Vector3.new(-605.121, 19.516, 160.010), Look = Vector3.new(0.854, 0, 0.520)},
+        ["Weather Machine"]         = {Pos = Vector3.new(-1518.550, 2.875, 1916.148), Look = Vector3.new(0.042, 0, 0.999)},
+        -- Custom locations (add your own)
+        ["My Custom Spot"]          = {Pos = Vector3.new(100, 10, 200), Look = Vector3.new(1, 0, 0)},
+        ["Secret Fishing Area"]     = {Pos = Vector3.new(-500, 5, 300), Look = Vector3.new(0, 0, 1)},
+    }
+    
+    -- Build sorted location list
+    local LocationList = {}
+    for locationName, _ in pairs(LocationMap) do
+        table.insert(LocationList, locationName)
+    end
+    table.sort(LocationList)
+    
+    -- ══════════════════════════════════════════════════════════════════════
+    -- REMOTE ACCESS
+    -- ══════════════════════════════════════════════════════════════════════
+    local net = ReplicatedStorage:WaitForChild("Packages")
+        :WaitForChild("_Index")
+        :WaitForChild("sleitnick_net@0.2.0")
+        :WaitForChild("net")
+    
+    local function GetRemote(name)
+        return net:FindFirstChild(name)
+    end
+    
+    -- Cache remotes
+    local EquipTool = GetRemote("RE/EquipToolFromHotbar")
+    local ChargeRod = GetRemote("RF/ChargeFishingRod")
+    local StartMini = GetRemote("RF/RequestFishingMinigameStarted")
+    local UpdateAutoFishing = GetRemote("RF/UpdateAutoFishingState")
+    local PurchaseRod = GetRemote("RF/PurchaseFishingRod")
+    local PurchaseBait = GetRemote("RF/PurchaseBait")
+    local SellAll = GetRemote("RF/SellAllItems")
+    local FavoriteItem = GetRemote("RE/FavoriteItem")
+    
+    -- ══════════════════════════════════════════════════════════════════════
+    -- REPLION DATA ACCESS (for inventory reading)
+    -- ══════════════════════════════════════════════════════════════════════
+    local PlayerDataReplion = nil
+    
+    local function GetPlayerDataReplion()
+        if PlayerDataReplion then return PlayerDataReplion end
+        local ReplionModule = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Replion", 10)
+        if not ReplionModule then return nil end
+        local ReplionClient = require(ReplionModule).Client
+        PlayerDataReplion = ReplionClient:WaitReplion("Data", 5)
+        return PlayerDataReplion
+    end
+    
+    -- ══════════════════════════════════════════════════════════════════════
+    -- HELPER FUNCTIONS
+    -- ══════════════════════════════════════════════════════════════════════
     local function getCharacter()
         return player.Character
     end
@@ -441,126 +572,118 @@ if game.PlaceId == 121864768012064 then
         return char and char:FindFirstChild("HumanoidRootPart")
     end
     
-    -- State Variables
-    local fishing = false
-    local selectedlocation = nil
-    local isEquipped = false
-    local autosellall = false
-    local deathConnection = nil
-    local selectedRod = nil
-    local selectedBait = nil
-    local isAutoBuyRod = false
-    local isAutoBuyBait = false
-    local isAutoEquipBest = false  -- ✅ NEW
-    
-    -- ✅ NEW: ROD PRICE DATABASE (for finding best rod)
-    local ROD_PRICES = {
-        [79] = 325, [76] = 750, [85] = 1500, [77] = 3000, [78] = 5000,
-        [4] = 15000, [80] = 50000, [6] = 215000, [7] = 437000,
-        [255] = 715000, [256] = 1380000, [5] = 1000000,
-        [126] = 3000000, [168] = 8000000, [258] = 12000000,
-        [169] = 99999999, [257] = 999999999
-    }
-    
-    -- ✅ NEW: BAIT PRICE DATABASE (for finding best bait)
-    local BAIT_PRICES = {
-        [1] = 0, [2] = 1000, [3] = 3000, [10] = 100, [17] = 83500,
-        [6] = 290000, [4] = 425000, [8] = 630000, [15] = 1148484,
-        [16] = 3700000, [20] = 4000000, [18] = 8200000
-    }
-    
-    -- Location Data
-    local locationMap = {
-        ["Iron Cavern"] = {Pos = Vector3.new(-8792.546, -588.000, 230.642), Look = Vector3.new(0.718, 0.000, 0.696)},
-        ["Disco Event"] = {Pos = Vector3.new(-8641.672, -547.500, 160.322), Look = Vector3.new(0.984, -0.000, 0.176)},
-        ["Classic Island"] = {Pos = Vector3.new(1440.843, 46.062, 2777.175), Look = Vector3.new(0.940, -0.000, 0.342)},
-        ["Ancient Jungle"] = {Pos = Vector3.new(1535.639, 3.159, -193.352), Look = Vector3.new(0.505, -0.000, 0.863)},
-        ["Arrow Lever"] = {Pos = Vector3.new(898.296, 8.449, -361.856), Look = Vector3.new(0.023, -0.000, 1.000)},
-        ["Coral Reef"] = {Pos = Vector3.new(-3207.538, 6.087, 2011.079), Look = Vector3.new(0.973, 0.000, 0.229)},
-        ["Crater Island"] = {Pos = Vector3.new(1058.976, 2.330, 5032.878), Look = Vector3.new(-0.789, 0.000, 0.615)},
-        ["Cresent Lever"] = {Pos = Vector3.new(1419.750, 31.199, 78.570), Look = Vector3.new(0.000, -0.000, -1.000)},
-        ["Crystalline Passage"] = {Pos = Vector3.new(6051.567, -538.900, 4370.979), Look = Vector3.new(0.109, 0.000, 0.994)},
-        ["Ancient Ruin"] = {Pos = Vector3.new(6031.981, -585.924, 4713.157), Look = Vector3.new(0.316, -0.000, -0.949)},
-        ["Diamond Lever"] = {Pos = Vector3.new(1818.930, 8.449, -284.110), Look = Vector3.new(0.000, 0.000, -1.000)},
-        ["Enchant Room"] = {Pos = Vector3.new(3255.670, -1301.530, 1371.790), Look = Vector3.new(-0.000, -0.000, -1.000)},
-        ["Esoteric Island"] = {Pos = Vector3.new(2164.470, 3.220, 1242.390), Look = Vector3.new(-0.000, -0.000, -1.000)},
-        ["Fisherman Island"] = {Pos = Vector3.new(74.030, 9.530, 2705.230), Look = Vector3.new(-0.000, -0.000, -1.000)},
-        ["Hourglass Diamond Lever"] = {Pos = Vector3.new(1484.610, 8.450, -861.010), Look = Vector3.new(-0.000, -0.000, -1.000)},
-        ["Kohana"] = {Pos = Vector3.new(-668.732, 3.000, 681.580), Look = Vector3.new(0.889, -0.000, 0.458)},
-        ["Lost Isle"] = {Pos = Vector3.new(-3804.105, 2.344, -904.653), Look = Vector3.new(-0.901, -0.000, 0.433)},
-        ["Sacred Temple"] = {Pos = Vector3.new(1461.815, -22.125, -670.234), Look = Vector3.new(-0.990, -0.000, 0.143)},
-        ["Second Enchant Altar"] = {Pos = Vector3.new(1479.587, 128.295, -604.224), Look = Vector3.new(-0.298, 0.000, -0.955)},
-        ["Sisyphus Statue"] = {Pos = Vector3.new(-3743.745, -135.074, -1007.554), Look = Vector3.new(0.310, 0.000, 0.951)},
-        ["Treasure Room"] = {Pos = Vector3.new(-3598.440, -281.274, -1645.855), Look = Vector3.new(-0.065, 0.000, -0.998)},
-        ["Tropical Island"] = {Pos = Vector3.new(-2162.920, 2.825, 3638.445), Look = Vector3.new(0.381, -0.000, 0.925)},
-        ["Underground Cellar"] = {Pos = Vector3.new(2118.417, -91.448, -733.800), Look = Vector3.new(0.854, 0.000, 0.521)},
-        ["Volcano"] = {Pos = Vector3.new(-605.121, 19.516, 160.010), Look = Vector3.new(0.854, 0.000, 0.520)},
-        ["Weather Machine"] = {Pos = Vector3.new(-1518.550, 2.875, 1916.148), Look = Vector3.new(0.042, 0.000, 0.999)},
-    }
-    
-    -- Generate location list
-    local farmlocationtable = {}
-    for name, _ in pairs(locationMap) do
-        table.insert(farmlocationtable, name)
+    local function updateCharacterReferences()
+        Character = player.Character or player.CharacterAdded:Wait()
+        HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+        Humanoid = Character:WaitForChild("Humanoid")
     end
-    table.sort(farmlocationtable)
     
-    task.wait(0.5)
+    -- ══════════════════════════════════════════════════════════════════════
+    -- CLICK FUNCTIONS
+    -- ══════════════════════════════════════════════════════════════════════
+    local function clickAt(x, y, waitTime)
+        waitTime = waitTime or 0.1
+        VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 0)
+        task.wait(0.05)
+        VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 0)
+        task.wait(waitTime)
+    end
     
-    -- ============================================
-    -- BAIT DATA
-    -- ============================================
-    local baitwithprice = {}
-    local baitnamelist = {}
+    local function clickMouse()
+        local humanoid = getHumanoid()
+        local hrp = getHumanoidRootPart()
+        
+        if not humanoid or humanoid.Health <= 0 or not hrp then
+            return
+        end
+        
+        local success = pcall(function()
+            local mousePos = UserInputService:GetMouseLocation()
+            VirtualInputManager:SendMouseButtonEvent(mousePos.X, mousePos.Y, 0, true, game, 0)
+            task.wait(0.05)
+            VirtualInputManager:SendMouseButtonEvent(mousePos.X, mousePos.Y, 0, false, game, 0)
+        end)
+        
+        if not success then
+            warn("❌ Click failed")
+        end
+    end
+    
+    -- ══════════════════════════════════════════════════════════════════════
+    -- TELEPORT FUNCTION
+    -- ══════════════════════════════════════════════════════════════════════
+    local function teleportToLocation(locationData)
+        local hrp = getHumanoidRootPart()
+        if hrp and locationData then
+            local pos = locationData.Pos
+            local look = locationData.Look
+            
+            hrp.CFrame = CFrame.new(pos) * CFrame.Angles(0, math.atan2(look.X, look.Z), 0)
+            
+            if camera then
+                camera.CFrame = CFrame.new(pos + Vector3.new(0, 5, 10), pos)
+            end
+            
+            print("📍 Teleported to location")
+        end
+    end
+    
+    -- ══════════════════════════════════════════════════════════════════════
+    -- DATA COLLECTION - BAITS
+    -- ══════════════════════════════════════════════════════════════════════
+    local baitsWithPrice = {}
+    local baitNamesList = {}
     
     if Baits then
-        for _, bait in pairs(Baits:GetChildren()) do
-            if string.match(bait.Name, "Bait$") then
-                local success, data = pcall(function()
-                    return require(bait)      
+        for _, baitItem in pairs(Baits:GetChildren()) do
+            if string.match(baitItem.Name, "Bait$") then
+                local success, baitData = pcall(function()
+                    return require(baitItem)
                 end)
-                if success and data.Price then
-                    table.insert(baitwithprice, {
-                        Name = bait.Name,
-                        Price = data.Price,
-                        Id = data.Data and data.Data.Id or 9999,
-                        BaseLuck = data.Modifiers and data.Modifiers.BaseLuck,
-                        Data = data
+                
+                if success and baitData.Price then
+                    table.insert(baitsWithPrice, {
+                        Name = baitItem.Name,
+                        Price = baitData.Price,
+                        Id = baitData.Data and baitData.Data.Id or 9999,
+                        BaseLuck = baitData.Modifiers and baitData.Modifiers.BaseLuck or 0,
+                        Data = baitData
                     })
                 end
             end
         end
         
-        table.sort(baitwithprice, function(a, b)
+        table.sort(baitsWithPrice, function(a, b)
             return a.Id < b.Id
         end)
         
-        for _, bait in ipairs(baitwithprice) do
-            local displayName = string.format("[%d] %s", bait.Id, bait.Name)
-            table.insert(baitnamelist, displayName)
+        for _, bait in ipairs(baitsWithPrice) do
+            table.insert(baitNamesList, string.format("[%d] %s", bait.Id, bait.Name))
         end
+        
+        print("🎣 Found", #baitsWithPrice, "buyable baits (sorted by ID)")
     end
     
-    -- ============================================
-    -- ROD DATA
-    -- ============================================
+    -- ══════════════════════════════════════════════════════════════════════
+    -- DATA COLLECTION - RODS
+    -- ══════════════════════════════════════════════════════════════════════
     local rodsWithPrice = {}
     local rodNamesList = {}
     
     for _, item in pairs(Items:GetChildren()) do
         if string.match(item.Name, "Rod$") then
-            local success, data = pcall(function()
+            local success, rodData = pcall(function()
                 return require(item)
             end)
             
-            if success and data.Price then
+            if success and rodData.Price then
                 table.insert(rodsWithPrice, {
                     Name = item.Name,
-                    Price = data.Price,
-                    Id = data.Data and data.Data.Id or 9999,
-                    ClickPower = data.ClickPower or 0,
-                    BaseLuck = data.RollData and data.RollData.BaseLuck or 0,
-                    Data = data
+                    Price = rodData.Price,
+                    Id = rodData.Data and rodData.Data.Id or 9999,
+                    ClickPower = rodData.ClickPower or 0,
+                    BaseLuck = rodData.RollData and rodData.RollData.BaseLuck or 0,
+                    Data = rodData
                 })
             end
         end
@@ -571,239 +694,81 @@ if game.PlaceId == 121864768012064 then
     end)
     
     for _, rod in ipairs(rodsWithPrice) do
-        local displayName = string.format("[%d] %s", rod.Id, rod.Name)
-        table.insert(rodNamesList, displayName)
+        table.insert(rodNamesList, string.format("[%d] %s", rod.Id, rod.Name))
     end
     
     print("🎣 Found", #rodsWithPrice, "buyable rods (sorted by ID)")
     
-    -- ============================================
-    -- ✅ NEW: AUTO EQUIP BEST ROD FUNCTION
-    -- ============================================
-    local function EquipBestRod()
-        print("🎣 [Auto Equip] Finding best rod...")
-        
-        -- Get Replion
-        local ReplionModule = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Replion", 5)
-        if not ReplionModule then 
-            warn("❌ Replion not found")
-            return false
-        end
-        
-        local ReplionClient = require(ReplionModule).Client
-        local PlayerDataReplion = ReplionClient:WaitReplion("Data", 5)
-        
-        if not PlayerDataReplion then
-            warn("❌ Cannot access player data")
-            return false
-        end
-        
-        local success, inventoryData = pcall(function() 
-            return PlayerDataReplion:GetExpect("Inventory") 
-        end)
-        
-        if not success or not inventoryData then
-            warn("❌ Cannot read inventory")
-            return false
-        end
-        
-        -- Find best rod
-        local bestRodUUID = nil
-        local bestPrice = -1
-        local bestRodName = "Unknown"
-        
-        if inventoryData["Fishing Rods"] then
-            for _, rod in ipairs(inventoryData["Fishing Rods"]) do
-                if typeof(rod.UUID) == "string" and #rod.UUID >= 10 then
-                    local rodID = tonumber(rod.Id)
-                    local price = ROD_PRICES[rodID] or 0
-                    
-                    if price > bestPrice then
-                        bestPrice = price
-                        bestRodUUID = rod.UUID
-                        
-                        pcall(function()
-                            local itemData = ItemUtility:GetItemData(rodID)
-                            if itemData and itemData.Data and itemData.Data.Name then
-                                bestRodName = itemData.Data.Name
-                            end
-                        end)
-                    end
-                end
+    -- ══════════════════════════════════════════════════════════════════════
+    -- GAME ACTION FUNCTIONS
+    -- ══════════════════════════════════════════════════════════════════════
+    local function closeInventory()
+        local playerGui = player:FindFirstChild("PlayerGui")
+        if playerGui then
+            local inventory = playerGui:FindFirstChild("Inventory")
+            if inventory then
+                inventory.Enabled = false
             end
         end
-        
-        -- Equip best rod
-        if bestRodUUID then
-            local ok = pcall(function()
-                game:GetService("ReplicatedStorage")
-                    :WaitForChild("Packages")
-                    :WaitForChild("_Index")
-                    :WaitForChild("sleitnick_net@0.2.0")
-                    :WaitForChild("net")
-                    :WaitForChild("RE/EquipItem")
-                    :FireServer(bestRodUUID, "Fishing Rods")
-            end)
-            
-            if ok then
-                print("✅ Equipped best rod:", bestRodName)
-                task.wait(0.3)
-                
-                -- Hold in hand
-                pcall(function()
-                    game:GetService("ReplicatedStorage")
-                        :WaitForChild("Packages")
-                        :WaitForChild("_Index")
-                        :WaitForChild("sleitnick_net@0.2.0")
-                        :WaitForChild("net")
-                        :WaitForChild("RE/EquipToolFromHotbar")
-                        :FireServer(1)
-                end)
-                
-                isEquipped = true
-                return true
-            end
-        end
-        
-        warn("⚠️ No rod found to equip")
-        return false
     end
-    
-    -- ============================================
-    -- ✅ NEW: AUTO EQUIP BEST BAIT FUNCTION
-    -- ============================================
-    local function EquipBestBait()
-        print("🪱 [Auto Equip] Finding best bait...")
-        
-        -- Get Replion
-        local ReplionModule = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Replion", 5)
-        if not ReplionModule then 
-            warn("❌ Replion not found")
-            return false
-        end
-        
-        local ReplionClient = require(ReplionModule).Client
-        local PlayerDataReplion = ReplionClient:WaitReplion("Data", 5)
-        
-        if not PlayerDataReplion then
-            warn("❌ Cannot access player data")
-            return false
-        end
-        
-        local success, inventoryData = pcall(function() 
-            return PlayerDataReplion:GetExpect("Inventory") 
-        end)
-        
-        if not success or not inventoryData then
-            warn("❌ Cannot read inventory")
-            return false
-        end
-        
-        -- Find best bait
-        local bestBaitID = nil
-        local bestPrice = -1
-        local bestBaitName = "Unknown"
-        
-        if inventoryData["Bait"] then
-            for _, bait in ipairs(inventoryData["Bait"]) do
-                local baitID = tonumber(bait.Id)
-                local price = BAIT_PRICES[baitID] or 0
-                
-                if price > bestPrice then
-                    bestPrice = price
-                    bestBaitID = baitID
-                    bestBaitName = bait.Name or ("Bait ID " .. baitID)
-                end
-            end
-        end
-        
-        -- Equip best bait
-        if bestBaitID then
-            local ok = pcall(function()
-                game:GetService("ReplicatedStorage")
-                    :WaitForChild("Packages")
-                    :WaitForChild("_Index")
-                    :WaitForChild("sleitnick_net@0.2.0")
-                    :WaitForChild("net")
-                    :WaitForChild("RE/EquipBait")
-                    :FireServer(bestBaitID)
-            end)
-            
-            if ok then
-                print("✅ Equipped best bait:", bestBaitName)
-                return true
-            end
-        end
-        
-        warn("⚠️ No bait found to equip")
-        return false
-    end
-    
-    -- ============================================
-    -- GAME FUNCTIONS
-    -- ============================================
     
     local function enableAutoFishing()
-        local args = {true}
-        game:GetService("ReplicatedStorage")
-            :WaitForChild("Packages")
-            :WaitForChild("_Index")
-            :WaitForChild("sleitnick_net@0.2.0")
-            :WaitForChild("net")
-            :WaitForChild("RF/UpdateAutoFishingState")
-            :InvokeServer(unpack(args))
+        if UpdateAutoFishing then
+            UpdateAutoFishing:InvokeServer(true)
+        end
     end
     
     local function disableAutoFishing()
-        local args = {false}
-        game:GetService("ReplicatedStorage")
-            :WaitForChild("Packages")
-            :WaitForChild("_Index")
-            :WaitForChild("sleitnick_net@0.2.0")
-            :WaitForChild("net")
-            :WaitForChild("RF/UpdateAutoFishingState")
-            :InvokeServer(unpack(args))
+        if UpdateAutoFishing then
+            UpdateAutoFishing:InvokeServer(false)
+        end
     end
     
-    local function buyRod(rodName)
-        if not rodName then
-            warn("⚠️ No rod name provided!")
+    local function buyRod(rodId)
+        if not rodId then
+            warn("⚠️ No rod ID provided!")
             return
         end
         
         local success, err = pcall(function()
-            local args = {rodName}
-            game:GetService("ReplicatedStorage")
-                :WaitForChild("Packages")
-                :WaitForChild("_Index")
-                :WaitForChild("sleitnick_net@0.2.0")
-                :WaitForChild("net")
-                :WaitForChild("RF/PurchaseFishingRod")
-                :InvokeServer(unpack(args))
-            
-            print("✅ Bought:", rodName)
+            if PurchaseRod then
+                PurchaseRod:InvokeServer(rodId)
+                print("✅ Bought rod ID:", rodId)
+            end
         end)
         
         if not success then
-            warn("❌ Buy failed:", err)
+            warn("❌ Buy rod failed:", err)
         end
     end
     
-    local function autoequip()
+    local function buyBait(baitId)
+        if not baitId then
+            warn("⚠️ No bait ID provided!")
+            return
+        end
+        
+        local success, err = pcall(function()
+            if PurchaseBait then
+                PurchaseBait:InvokeServer(baitId)
+                print("✅ Bought bait ID:", baitId)
+            end
+        end)
+        
+        if not success then
+            warn("❌ Buy bait failed:", err)
+        end
+    end
+    
+    local function autoEquip()
         if isEquipped then return end
         
         local success, err = pcall(function()
-            local args = {1}
-            game:GetService("ReplicatedStorage")
-                :WaitForChild("Packages")
-                :WaitForChild("_Index")
-                :WaitForChild("sleitnick_net@0.2.0")
-                :WaitForChild("net")
-                :WaitForChild("RE/EquipToolFromHotbar")
-                :FireServer(unpack(args))
-            
-            isEquipped = true
-            print("✅ Equipped fishing rod")
+            if EquipTool then
+                EquipTool:FireServer(1)
+                isEquipped = true
+                print("✅ Equipped fishing rod")
+            end
         end)
         
         if not success then
@@ -814,15 +779,10 @@ if game.PlaceId == 121864768012064 then
     
     local function sellAllItems()
         local success, err = pcall(function()
-            game:GetService("ReplicatedStorage")
-                :WaitForChild("Packages")
-                :WaitForChild("_Index")
-                :WaitForChild("sleitnick_net@0.2.0")
-                :WaitForChild("net")
-                :WaitForChild("RF/SellAllItems")
-                :InvokeServer()
-            
-            print("💰 Sold all items!")
+            if SellAll then
+                SellAll:InvokeServer()
+                print("💰 Sold all items!")
+            end
         end)
         
         if not success then
@@ -830,6 +790,216 @@ if game.PlaceId == 121864768012064 then
         end
     end
     
+    local function autoEquipRod()
+        print("🎣 Starting rod equip...")
+        clickAt(POSITIONS.openInventory.x, POSITIONS.openInventory.y, 1)
+        clickAt(POSITIONS.equipRod.x, POSITIONS.equipRod.y, 0.5)
+        task.wait(2)
+        closeInventory()
+    end
+    
+    local function autoEquipBait()
+        task.wait(5)
+        clickAt(BAIT_POSITIONS.bait1.x, BAIT_POSITIONS.bait1.y, 1)
+        clickAt(BAIT_POSITIONS.bait2.x, BAIT_POSITIONS.bait2.y, 1)
+        clickAt(BAIT_POSITIONS.bait3.x, BAIT_POSITIONS.bait3.y, 1)
+        task.wait(2)
+        closeInventory()
+    end
+    
+    -- ══════════════════════════════════════════════════════════════════════
+    -- AUTO FAVORITE FISH SYSTEM
+    -- ══════════════════════════════════════════════════════════════════════
+    
+    -- Rarity list for dropdown
+    local RarityList = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "SECRET"}
+    
+    -- Mutation list for dropdown
+    local MutationList = {
+        "Shiny", "Gemstone", "Corrupt", "Galaxy", "Holographic", 
+        "Ghost", "Lightning", "Fairy Dust", "Gold", "Midnight", 
+        "Radioactive", "Stone", "Albino", "Sandy", "Acidic", 
+        "Disco", "Frozen", "Noob"
+    }
+    
+    -- Get all fish/item names from ReplicatedStorage
+    local function getAllItemNames()
+        local itemNames = {}
+        local itemsContainer = ReplicatedStorage:FindFirstChild("Items")
+        
+        if not itemsContainer then
+            return {"(No items found)"}
+        end
+        
+        for _, itemObject in ipairs(itemsContainer:GetChildren()) do
+            local itemName = itemObject.Name
+            -- Skip items starting with "!!!" and rods
+            if type(itemName) == "string" and #itemName >= 3 then
+                local prefix = itemName:sub(1, 3)
+                if prefix ~= "!!!" and not itemName:match("Rod$") then
+                    table.insert(itemNames, itemName)
+                end
+            end
+        end
+        
+        table.sort(itemNames)
+        return #itemNames > 0 and itemNames or {"(No items found)"}
+    end
+    
+    local AllItemNames = getAllItemNames()
+    
+    -- Get fish name and rarity from item data
+    local function getFishNameAndRarity(item)
+        local name = item.Identifier or "Unknown"
+        local rarity = "COMMON"
+        
+        -- Try to get from metadata
+        if item.Metadata and item.Metadata.Rarity then
+            rarity = item.Metadata.Rarity
+        end
+        
+        -- Try to get proper name from ItemUtility
+        local itemID = item.Id
+        if ItemUtility and itemID then
+            local success, itemData = pcall(function()
+                return ItemUtility:GetItemData(itemID)
+            end)
+            if success and itemData and itemData.Data and itemData.Data.Name then
+                name = itemData.Data.Name
+            end
+            -- Get rarity from TierUtility if not in metadata
+            if success and itemData and itemData.Probability and itemData.Probability.Chance and TierUtility then
+                pcall(function()
+                    local tierName = TierUtility:GetTierFromChance(itemData.Probability.Chance)
+                    if tierName then
+                        rarity = tierName
+                    end
+                end)
+            end
+        end
+        
+        return name, rarity
+    end
+    
+    -- Get mutation string from item
+    local function getItemMutation(item)
+        if item.Metadata and item.Metadata.Shiny == true then
+            return "Shiny"
+        end
+        return item.Metadata and item.Metadata.VariantId or ""
+    end
+    
+    -- Get items that should be favorited
+    local function getItemsToFavorite()
+        local replion = GetPlayerDataReplion()
+        if not replion then return {} end
+        
+        local success, inventoryData = pcall(function()
+            return replion:GetExpect("Inventory")
+        end)
+        
+        if not success or not inventoryData or not inventoryData.Items then
+            return {}
+        end
+        
+        local itemsToFavorite = {}
+        
+        -- Check if any filter is active
+        local isRarityFilterActive = #selectedRarities > 0
+        local isNameFilterActive = #selectedFishNames > 0
+        local isMutationFilterActive = #selectedMutations > 0
+        
+        -- No filters selected = don't favorite anything
+        if not (isRarityFilterActive or isNameFilterActive or isMutationFilterActive) then
+            return {}
+        end
+        
+        for _, item in ipairs(inventoryData.Items) do
+            -- Skip if already favorited
+            if item.IsFavorite or item.Favorited then
+                continue
+            end
+            
+            -- Validate UUID
+            local itemUUID = item.UUID
+            if typeof(itemUUID) ~= "string" or #itemUUID < 10 then
+                continue
+            end
+            
+            local name, rarity = getFishNameAndRarity(item)
+            local mutation = getItemMutation(item)
+            
+            local isMatch = false
+            
+            -- Check rarity filter
+            if isRarityFilterActive and table.find(selectedRarities, rarity) then
+                isMatch = true
+            end
+            
+            -- Check name filter
+            if not isMatch and isNameFilterActive and table.find(selectedFishNames, name) then
+                isMatch = true
+            end
+            
+            -- Check mutation filter
+            if not isMatch and isMutationFilterActive and table.find(selectedMutations, mutation) then
+                isMatch = true
+            end
+            
+            if isMatch then
+                table.insert(itemsToFavorite, itemUUID)
+            end
+        end
+        
+        return itemsToFavorite
+    end
+    
+    -- Set item favorite state
+    local function setItemFavorite(itemUUID)
+        if not FavoriteItem then return false end
+        pcall(function()
+            FavoriteItem:FireServer(itemUUID)
+        end)
+        return true
+    end
+    
+    -- Run auto favorite loop
+    local function runAutoFavoriteLoop()
+        if autoFavoriteThread then
+            task.cancel(autoFavoriteThread)
+        end
+        
+        autoFavoriteThread = task.spawn(function()
+            print("⭐ Auto Favorite started!")
+            
+            while autoFavorite do
+                local itemsToFavorite = getItemsToFavorite()
+                
+                if #itemsToFavorite > 0 then
+                    print(string.format("⭐ Favoriting %d items...", #itemsToFavorite))
+                    for _, itemUUID in ipairs(itemsToFavorite) do
+                        setItemFavorite(itemUUID)
+                        task.wait(0.5) -- Delay between favorites to avoid rate limiting
+                    end
+                end
+                
+                task.wait(1) -- Check every 1 second
+            end
+            
+            print("⭐ Auto Favorite stopped!")
+        end)
+    end
+    
+    local function stopAutoFavorite()
+        if autoFavoriteThread then
+            task.cancel(autoFavoriteThread)
+            autoFavoriteThread = nil
+        end
+    end
+    
+    -- ══════════════════════════════════════════════════════════════════════
+    -- DEATH HANDLER
+    -- ══════════════════════════════════════════════════════════════════════
     local function disconnectDeathHandler()
         if deathConnection then
             deathConnection:Disconnect()
@@ -842,9 +1012,9 @@ if game.PlaceId == 121864768012064 then
         disconnectDeathHandler()
         
         local humanoid = getHumanoid()
-        if not humanoid then 
+        if not humanoid then
             warn("❌ Cannot setup death handler")
-            return 
+            return
         end
         
         deathConnection = humanoid.Died:Connect(function()
@@ -853,25 +1023,18 @@ if game.PlaceId == 121864768012064 then
             
             local newCharacter = player.CharacterAdded:Wait()
             local newHumanoid = newCharacter:WaitForChild("Humanoid")
-            local newHumanoidRootPart = newCharacter:WaitForChild("HumanoidRootPart")
+            local newHRP = newCharacter:WaitForChild("HumanoidRootPart")
             
+            updateCharacterReferences()
             task.wait(1)
             
-            if selectedlocation and newHumanoidRootPart then
-                newHumanoidRootPart.CFrame = selectedlocation
+            if selectedLocation and newHRP then
+                teleportToLocation(selectedLocation)
                 print("📍 Teleported back")
             end
             
             task.wait(0.5)
-            
-            -- ✅ Use new auto equip function
-            if isAutoEquipBest then
-                EquipBestRod()
-                task.wait(0.5)
-                EquipBestBait()
-            else
-                autoequip()
-            end
+            autoEquip()
             
             print("✅ Respawned and re-equipped")
             
@@ -883,56 +1046,26 @@ if game.PlaceId == 121864768012064 then
         print("🔗 Death handler connected")
     end
     
-    local function clickMouse()
-        local humanoid = getHumanoid()
-        local humanoidRootPart = getHumanoidRootPart()
-        
-        if not humanoid or humanoid.Health <= 0 or not humanoidRootPart then 
-            return 
-        end
-        
-        local success = pcall(function()
-            local mousePos = UserInputService:GetMouseLocation()
-            
-            VirtualInputManager:SendMouseButtonEvent(mousePos.X, mousePos.Y, 0, true, game, 0)
-            task.wait(0.05)
-            VirtualInputManager:SendMouseButtonEvent(mousePos.X, mousePos.Y, 0, false, game, 0)
-        end)
-        
-        if not success then
-            warn("❌ Click failed")
-        end
-    end
-    
-    local function teleportToLocation(locationData)
-        local humanoidRootPart = getHumanoidRootPart()
-        if humanoidRootPart and locationData then
-            local pos = locationData.Pos
-            local look = locationData.Look
-            humanoidRootPart.CFrame = CFrame.new(pos) * CFrame.Angles(0, math.atan2(look.X, look.Z), 0)
-            print("📍 Teleported to location")
-        end
-    end
-    
-    -- ============================================
+    -- ══════════════════════════════════════════════════════════════════════
     -- UI SETUP - FARM TAB
-    -- ============================================
-    local FarmTab = GUI:Tab{
+    -- ══════════════════════════════════════════════════════════════════════
+    local FarmTab = GUI:Tab({
         Name = "Auto Farm",
         Icon = "rbxassetid://8569322835"
-    }
+    })
     
-    FarmTab:Dropdown{
+    -- Rod Selection
+    FarmTab:Dropdown({
         Name = "Select Rod to Buy",
         StartingText = "Select a rod...",
         Description = "Sorted by ID",
         Items = rodNamesList,
-        Callback = function(item) 
+        Callback = function(item)
             local rodName = string.match(item, "%] (.+)$") or item
-            selectedRod = rodName
             
             for _, rod in ipairs(rodsWithPrice) do
                 if rod.Name == rodName then
+                    selectedRod = rod.Id
                     print("═══════════════════════════════════")
                     print("🆔 ID:", rod.Id)
                     print("🎣 Rod:", rod.Name)
@@ -944,36 +1077,13 @@ if game.PlaceId == 121864768012064 then
                 end
             end
         end
-    }
+    })
     
-    FarmTab:Dropdown{
-        Name = "Select bait to Buy",
-        StartingText = "Select a Bait...",
-        Description = "Sorted by ID",
-        Items = baitnamelist,
-        Callback = function(item) 
-            local BaitName = string.match(item, "%] (.+)$") or item
-            selectedBait = BaitName
-            
-            for _, bait in ipairs(baitwithprice) do
-                if bait.Name == BaitName then
-                    print("═══════════════════════════════════")
-                    print("🆔 ID:", bait.Id)
-                    print("🪱 Bait:", bait.Name)
-                    print("💰 Price:", string.format("%d", bait.Price))
-                    print("🍀 Luck:", bait.BaseLuck)
-                    print("═══════════════════════════════════")
-                    break
-                end
-            end
-        end
-    }
-    
-    FarmTab:Toggle{
+    FarmTab:Toggle({
         Name = "Auto Buy Rod",
         StartingState = false,
         Description = "Auto buy selected rod every 60s",
-        Callback = function(state) 
+        Callback = function(state)
             isAutoBuyRod = state
             
             if isAutoBuyRod and not selectedRod then
@@ -985,6 +1095,7 @@ if game.PlaceId == 121864768012064 then
                 while isAutoBuyRod do
                     if selectedRod then
                         buyRod(selectedRod)
+                        autoEquipRod()
                         task.wait(60)
                     else
                         warn("⚠️ No rod selected!")
@@ -994,18 +1105,56 @@ if game.PlaceId == 121864768012064 then
             end)
             
             if state then
-                print("✅ Auto Buy Rod enabled for:", selectedRod)
+                print("✅ Auto Buy Rod enabled for ID:", selectedRod)
             else
                 print("❌ Auto Buy Rod disabled")
             end
         end
-    }
+    })
     
-    FarmTab:Toggle{
+    FarmTab:Button({
+        Name = "Buy Selected Rod Now",
+        Description = "Buy immediately",
+        Callback = function()
+            if selectedRod then
+                print("💰 Purchasing rod ID:", selectedRod)
+                buyRod(selectedRod)
+                autoEquipRod()
+            else
+                warn("⚠️ Please select a rod first!")
+            end
+        end
+    })
+    
+    -- Bait Selection
+    FarmTab:Dropdown({
+        Name = "Select Bait to Buy",
+        StartingText = "Select a bait...",
+        Description = "Sorted by ID",
+        Items = baitNamesList,
+        Callback = function(item)
+            local baitName = string.match(item, "%] (.+)$") or item
+            
+            for _, bait in ipairs(baitsWithPrice) do
+                if bait.Name == baitName then
+                    selectedBait = bait.Id
+                    print("═══════════════════════════════════")
+                    print("🆔 ID:", bait.Id)
+                    print("🪱 Bait:", bait.Name)
+                    print("💰 Price:", string.format("%d", bait.Price))
+                    print("🍀 Luck:", bait.BaseLuck)
+                    print("═══════════════════════════════════")
+                    break
+                end
+            end
+        end
+    })
+    
+    FarmTab:Toggle({
         Name = "Auto Buy Bait",
         StartingState = false,
-        Description = "Auto buy selected Baits every 60s",
-        Callback = function(state) 
+        Description = "Auto buy selected bait every 60s",
+        Callback = function(state)
             isAutoBuyBait = state
             
             if isAutoBuyBait and not selectedBait then
@@ -1016,7 +1165,8 @@ if game.PlaceId == 121864768012064 then
             task.spawn(function()
                 while isAutoBuyBait do
                     if selectedBait then
-                        -- Note: Need to implement buyBait function if needed
+                        buyBait(selectedBait)
+                        autoEquipBait()
                         task.wait(60)
                     else
                         warn("⚠️ No bait selected!")
@@ -1026,98 +1176,67 @@ if game.PlaceId == 121864768012064 then
             end)
             
             if state then
-                print("✅ Auto Buy Bait enabled")
+                print("✅ Auto Buy Bait enabled for ID:", selectedBait)
             else
                 print("❌ Auto Buy Bait disabled")
             end
         end
-    }
+    })
     
-    FarmTab:Button{
-        Name = "Buy Selected Rod Now",
+    FarmTab:Button({
+        Name = "Buy Selected Bait Now",
         Description = "Buy immediately",
         Callback = function()
-            if selectedRod then
-                buyRod(selectedRod)
+            if selectedBait then
+                print("💰 Purchasing bait ID:", selectedBait)
+                buyBait(selectedBait)
+                autoEquipBait()
             else
-                warn("⚠️ Please select a rod first!")
+                warn("⚠️ Please select a bait first!")
             end
         end
-    }
+    })
     
-    -- ✅ NEW: AUTO EQUIP BEST TOGGLE
-    FarmTab:Toggle{
-        Name = "🔄 Auto Equip Best Rod & Bait",
-        StartingState = false,
-        Description = "Auto equip best rod & bait every 3 minutes",
-        Callback = function(state) 
-            isAutoEquipBest = state
-            
-            if state then
-                print("✅ Auto Equip Best enabled (every 3 min)")
-                
-                task.spawn(function()
-                    while isAutoEquipBest do
-                        print("🔄 [Auto Equip] Running...")
-                        EquipBestRod()
-                        task.wait(1)
-                        EquipBestBait()
-                        
-                        task.wait(180)  -- 3 minutes = 180 seconds
-                    end
-                end)
-            else
-                print("❌ Auto Equip Best disabled")
-            end
-        end
-    }
-    
-    FarmTab:Button{
-        Name = "🔄 Equip Best Now",
-        Description = "Manually equip best rod & bait",
-        Callback = function()
-            print("🔄 Equipping best rod and bait...")
-            EquipBestRod()
-            task.wait(1)
-            EquipBestBait()
-        end
-    }
-    
-    FarmTab:Dropdown{
+    -- Location Selection
+    FarmTab:Dropdown({
         Name = "Select Location",
-        StartingText = "Select...",
+        StartingText = "Select fishing spot...",
         Description = "Choose fishing location",
-        Items = farmlocationtable,
-        Callback = function(item) 
-            selectedlocation = locationMap[item]
-            if selectedlocation then
+        Items = LocationList,
+        Callback = function(item)
+            selectedLocation = LocationMap[item]
+            if selectedLocation then
                 print("📍 Selected location:", item)
-                teleportToLocation(selectedlocation)
+                teleportToLocation(selectedLocation)
+            else
+                warn("⚠️ Location not found:", item)
             end
         end
-    }
+    })
     
-    FarmTab:Toggle{
+    -- Auto Sell
+    FarmTab:Toggle({
         Name = "Auto Sell All",
         StartingState = false,
         Description = "Auto sell all items every 20s",
-        Callback = function(state) 
-            autosellall = state
+        Callback = function(state)
+            autoSellAll = state
             
             task.spawn(function()
-                while autosellall do
+                while autoSellAll do
                     sellAllItems()
                     task.wait(20)
                 end
             end)
         end
-    }
+    })
     
-    FarmTab:Toggle{
+    -- Auto Farm (Main Toggle)
+    FarmTab:Toggle({
         Name = "Auto Farm",
         StartingState = false,
         Description = "Enable auto fishing",
-        Callback = function(state) 
+        Callback = function(state)
             fishing = state
             
             if fishing then
@@ -1126,15 +1245,7 @@ if game.PlaceId == 121864768012064 then
                 enableAutoFishing()
                 setupDeathHandler()
                 task.wait(0.5)
-                
-                -- ✅ Use new auto equip if enabled
-                if isAutoEquipBest then
-                    EquipBestRod()
-                    task.wait(0.5)
-                    EquipBestBait()
-                else
-                    autoequip()
-                end
+                autoEquip()
                 
                 -- Auto click loop
                 task.spawn(function()
@@ -1158,12 +1269,7 @@ if game.PlaceId == 121864768012064 then
                         
                         if humanoid and humanoid.Health > 0 and not isEquipped then
                             print("⚠️ Re-equipping tool...")
-                            
-                            if isAutoEquipBest then
-                                EquipBestRod()
-                            else
-                                autoequip()
-                            end
+                            autoEquip()
                         end
                         task.wait(5)
                     end
@@ -1176,23 +1282,147 @@ if game.PlaceId == 121864768012064 then
                 isEquipped = false
             end
         end
-    }
+    })
     
-    -- ============================================
+    -- ══════════════════════════════════════════════════════════════════════
     -- UI SETUP - PET TAB
-    -- ============================================
-    local PetTab = GUI:Tab{
+    -- ══════════════════════════════════════════════════════════════════════
+    local PetTab = GUI:Tab({
         Name = "Pet Tab",
         Icon = "rbxassetid://8569322835"
-    }
+    })
     
-    PetTab:Button{
+    PetTab:Button({
         Name = "Coming Soon",
         Description = "Pet features will be added soon",
         Callback = function()
             print("🐾 Pet features coming soon!")
         end
-    }
+    })
+    
+    -- ══════════════════════════════════════════════════════════════════════
+    -- UI SETUP - FAVORITE TAB
+    -- ══════════════════════════════════════════════════════════════════════
+    local FavoriteTab = GUI:Tab({
+        Name = "Auto Favorite",
+        Icon = "rbxassetid://8569322835"
+    })
+    
+    -- Filter by Rarity
+    FavoriteTab:Dropdown({
+        Name = "Filter by Rarity",
+        StartingText = "Select rarities...",
+        Description = "Fish with these rarities will be favorited",
+        Items = RarityList,
+        Callback = function(item)
+            -- Toggle selection
+            local index = table.find(selectedRarities, item)
+            if index then
+                table.remove(selectedRarities, index)
+            else
+                table.insert(selectedRarities, item)
+            end
+            print("⭐ Selected rarities:", table.concat(selectedRarities, ", "))
+        end
+    })
+    
+    -- Filter by Mutation
+    FavoriteTab:Dropdown({
+        Name = "Filter by Mutation",
+        StartingText = "Select mutations...",
+        Description = "Fish with these mutations will be favorited",
+        Items = MutationList,
+        Callback = function(item)
+            -- Toggle selection
+            local index = table.find(selectedMutations, item)
+            if index then
+                table.remove(selectedMutations, index)
+            else
+                table.insert(selectedMutations, item)
+            end
+            print("⭐ Selected mutations:", table.concat(selectedMutations, ", "))
+        end
+    })
+    
+    -- Filter by Fish Name
+    FavoriteTab:Dropdown({
+        Name = "Filter by Fish Name",
+        StartingText = "Select fish...",
+        Description = "Specific fish names to favorite",
+        Items = AllItemNames,
+        Callback = function(item)
+            -- Toggle selection
+            local index = table.find(selectedFishNames, item)
+            if index then
+                table.remove(selectedFishNames, index)
+            else
+                table.insert(selectedFishNames, item)
+            end
+            print("⭐ Selected fish names:", table.concat(selectedFishNames, ", "))
+        end
+    })
+    
+    -- Clear All Filters Button
+    FavoriteTab:Button({
+        Name = "Clear All Filters",
+        Description = "Reset all favorite filters",
+        Callback = function()
+            selectedRarities = {}
+            selectedMutations = {}
+            selectedFishNames = {}
+            print("⭐ All filters cleared!")
+        end
+    })
+    
+    -- Show Current Filters Button
+    FavoriteTab:Button({
+        Name = "Show Current Filters",
+        Description = "Display active filters",
+        Callback = function()
+            print("═══════════════════════════════════")
+            print("⭐ CURRENT FAVORITE FILTERS:")
+            print("  Rarities:", #selectedRarities > 0 and table.concat(selectedRarities, ", ") or "None")
+            print("  Mutations:", #selectedMutations > 0 and table.concat(selectedMutations, ", ") or "None")
+            print("  Fish Names:", #selectedFishNames > 0 and table.concat(selectedFishNames, ", ") or "None")
+            print("═══════════════════════════════════")
+        end
+    })
+    
+    -- Auto Favorite Toggle
+    FavoriteTab:Toggle({
+        Name = "Enable Auto Favorite",
+        StartingState = false,
+        Description = "Automatically favorite fish matching filters",
+        Callback = function(state)
+            autoFavorite = state
+            
+            if autoFavorite then
+                -- Check if any filter is selected
+                local hasFilters = #selectedRarities > 0 or 
+                                   #selectedMutations > 0 or 
+                                   #selectedFishNames > 0
+                
+                if not hasFilters then
+                    warn("⚠️ No filters selected! Please select at least one filter.")
+                    autoFavorite = false
+                    return
+                end
+                
+                -- Check if Replion is available
+                if not GetPlayerDataReplion() then
+                    warn("⚠️ Failed to load player data!")
+                    autoFavorite = false
+                    return
+                end
+                
+                print("⭐ Auto Favorite enabled!")
+                runAutoFavoriteLoop()
+            else
+                print("⭐ Auto Favorite disabled!")
+                stopAutoFavorite()
+            end
+        end
+    })
     
     print("✅ Fish It script loaded!")
 end
