@@ -1312,17 +1312,21 @@ if game.PlaceId == 121864768012064 then
     FavoriteTab:Dropdown({
         Name = "Filter by Rarity",
         StartingText = "Select rarities...",
-        Description = "Fish with these rarities will be favorited",
+        Description = "Auto favorite ALL fish of selected rarity (no need to pick fish names)",
         Items = RarityList,
         Callback = function(item)
             -- Toggle selection
             local index = table.find(selectedRarities, item)
             if index then
                 table.remove(selectedRarities, index)
+                print("⭐ Removed rarity:", item)
             else
                 table.insert(selectedRarities, item)
+                print("⭐ Added rarity:", item, "- Will favorite ALL", item, "fish!")
             end
-            print("⭐ Selected rarities:", table.concat(selectedRarities, ", "))
+            if #selectedRarities > 0 then
+                print("⭐ Active rarities:", table.concat(selectedRarities, ", "))
+            end
         end
     })
     
@@ -1330,17 +1334,21 @@ if game.PlaceId == 121864768012064 then
     FavoriteTab:Dropdown({
         Name = "Filter by Mutation",
         StartingText = "Select mutations...",
-        Description = "Fish with these mutations will be favorited",
+        Description = "Auto favorite ALL fish with selected mutation (optional)",
         Items = MutationList,
         Callback = function(item)
             -- Toggle selection
             local index = table.find(selectedMutations, item)
             if index then
                 table.remove(selectedMutations, index)
+                print("⭐ Removed mutation:", item)
             else
                 table.insert(selectedMutations, item)
+                print("⭐ Added mutation:", item, "- Will favorite ALL", item, "fish!")
             end
-            print("⭐ Selected mutations:", table.concat(selectedMutations, ", "))
+            if #selectedMutations > 0 then
+                print("⭐ Active mutations:", table.concat(selectedMutations, ", "))
+            end
         end
     })
     
@@ -1348,17 +1356,21 @@ if game.PlaceId == 121864768012064 then
     FavoriteTab:Dropdown({
         Name = "Filter by Fish Name",
         StartingText = "Select fish...",
-        Description = "Specific fish names to favorite",
+        Description = "(Optional) Add specific fish names to favorite",
         Items = AllItemNames,
         Callback = function(item)
             -- Toggle selection
             local index = table.find(selectedFishNames, item)
             if index then
                 table.remove(selectedFishNames, index)
+                print("⭐ Removed fish:", item)
             else
                 table.insert(selectedFishNames, item)
+                print("⭐ Added fish:", item)
             end
-            print("⭐ Selected fish names:", table.concat(selectedFishNames, ", "))
+            if #selectedFishNames > 0 then
+                print("⭐ Active fish names:", table.concat(selectedFishNames, ", "))
+            end
         end
     })
     
@@ -1392,7 +1404,7 @@ if game.PlaceId == 121864768012064 then
     FavoriteTab:Toggle({
         Name = "Enable Auto Favorite",
         StartingState = false,
-        Description = "Automatically favorite fish matching filters",
+        Description = "ON = Auto favorite fish matching ANY selected filter",
         Callback = function(state)
             autoFavorite = state
             
@@ -1403,7 +1415,7 @@ if game.PlaceId == 121864768012064 then
                                    #selectedFishNames > 0
                 
                 if not hasFilters then
-                    warn("⚠️ No filters selected! Please select at least one filter.")
+                    warn("⚠️ Select at least one rarity, mutation, or fish name first!")
                     autoFavorite = false
                     return
                 end
@@ -1415,7 +1427,20 @@ if game.PlaceId == 121864768012064 then
                     return
                 end
                 
-                print("⭐ Auto Favorite enabled!")
+                -- Show what will be favorited
+                print("═══════════════════════════════════")
+                print("⭐ AUTO FAVORITE ENABLED!")
+                if #selectedRarities > 0 then
+                    print("  → Will favorite ALL:", table.concat(selectedRarities, ", "), "fish")
+                end
+                if #selectedMutations > 0 then
+                    print("  → Will favorite ALL:", table.concat(selectedMutations, ", "), "fish")
+                end
+                if #selectedFishNames > 0 then
+                    print("  → Will favorite:", table.concat(selectedFishNames, ", "))
+                end
+                print("═══════════════════════════════════")
+                
                 runAutoFavoriteLoop()
             else
                 print("⭐ Auto Favorite disabled!")
